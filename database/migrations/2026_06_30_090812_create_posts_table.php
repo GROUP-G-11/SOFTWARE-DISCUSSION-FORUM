@@ -19,7 +19,8 @@ return new class extends Migration
             $table->string('attachment_url')->nullable();
             $table->timestamp('posted_at')->nullable();
             $table->boolean('is_flagged')->default(false);
-            $table->timestamps();
+            $table->timestamp('posted_at')->useCurrent();
+            //$table->timestamps(); commented this
         });
     }
 
