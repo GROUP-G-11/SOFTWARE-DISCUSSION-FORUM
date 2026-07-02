@@ -104,12 +104,12 @@
         @csrf
 
         <div class="form-group">
-            <label for="name">Full Name</label>
+            <label for="full_name">Full Name</label>
             <input
                 type="text"
-                id="name"
-                name="name"
-                value="{{ old('name') }}"
+                id="full_name"
+                name="full_name"
+                value="{{ old('full_name') }}"
                 placeholder="John Doe"
                 required
             >
@@ -190,7 +190,7 @@
     }
 
     // If validation failed and form was submitted, skip the modal
-    @if($errors->any() || old('name'))
+    @if($errors->any() || old('full_name'))
         document.getElementById('rules-modal').style.display = 'none';
         document.getElementById('register-form').style.display = 'block';
     @endif

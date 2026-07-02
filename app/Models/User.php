@@ -2,74 +2,63 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * Table 5: User table
+ */
 class User extends Authenticatable
 {
-    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    protected $primaryKey = 'user_id';
+    public $incrementing = true;
+    protected $keyType = 'int';
+
     protected $fillable = [
-        'name',
+        'full_name',
         'email',
-        'password',
-        'role',
+        'password_hash',
+        'presence_status',
+        'last_active_at',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
-        'password',
+        'password_hash',
         'remember_token',
     ];
 
+    protected $casts = [
+        'last_active_at' => 'datetime',
+    ];
+
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * Auth::attempt() compares against this column instead of the
+     * Laravel-default 'password' column, since Table 5 names it
+     * password_hash.
      */
-    protected function casts(): array
+    public function getAuthPassword()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
-      // Role helpers — usable anywhere as $user->isAdmin()
-    public function isAdmin(): bool
-    {
-        return $this->role === 'admin';
+        return $this->password_hash;
     }
 
-    public function isLecturer(): bool
+    /** Roles assigned to this user (Table 6: UserRole pivot -> Table 21: Role). */
+    public function roles()
     {
-        return $this->role === 'lecturer';
+        return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id')
+            ->withPivot('assigned_at', 'assigned_by')
+            ->withTimestamps();
     }
 
-    public function isStudent(): bool
+    public function hasRole(string $role): bool
     {
-        return $this->role === 'student';
+        return $this->roles()->where('role_name', ucfirst($role))->exists();
     }
 
-     public function quizzes()
-    {
-        return $this->hasMany(\App\Models\Quiz::class, 'lecturer_id');
-    }
-
-    public function quizAttempts()
-    {
-        return $this->hasMany(\App\Models\QuizAttempt::class, 'student_id');
-    }
+    public function isAdmin(): bool    { return $this->hasRole('administrator') || $this->hasRole('admin'); }
+    public function isLecturer(): bool { return $this->hasRole('lecturer'); }
+    public function isStudent(): bool  { return $this->hasRole('student'); }
 }
