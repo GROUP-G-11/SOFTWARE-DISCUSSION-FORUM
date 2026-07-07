@@ -11,7 +11,17 @@
     <h3>Write a post</h3>
     <form id="postForm">
         <textarea id="postContent" rows="3" placeholder="Share your thoughts…" required></textarea>
-        <input type="text" id="excludeIds" placeholder="Exclude user IDs (comma-separated, optional)">
+
+        <label for="excludeGroup" class="muted" style="display:block; margin-top:8px;">Exclude members of group (optional)</label>
+        <select id="excludeGroup" style="margin-bottom:6px;">
+            <option value="">— Select a group —</option>
+        </select>
+
+        <label for="excludeUsers" class="muted" style="display:block;">Exclude specific users (optional)</label>
+        <select id="excludeUsers" multiple style="min-height:100px; margin-bottom:10px;">
+            <option disabled>Select a group above to load its members…</option>
+        </select>
+
         <button class="btn" type="submit">Post</button>
     </form>
 </div>
@@ -30,6 +40,43 @@ async function loadTopic() {
     document.getElementById('exportLink').href = `/api/topics/${topicId}/export`;
     renderPosts(t.posts || []);
 }
+
+/** Populate the "exclude by group" dropdown from the groups that actually exist. */
+async function loadGroupsForExclusion() {
+    const select = document.getElementById('excludeGroup');
+    try {
+        const res = await api('/groups');
+        const groups = res.data || res; // handles paginated or plain array response
+        select.innerHTML = '<option value="">— Select a group —</option>' +
+            groups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
+    } catch (err) {
+        console.error('Could not load groups', err);
+    }
+}
+
+/** When a group is picked, load its real members into the exclude-users multi-select. */
+async function loadMembersForExclusion(groupId) {
+    const select = document.getElementById('excludeUsers');
+    if (!groupId) {
+        select.innerHTML = '<option disabled>Select a group above to load its members…</option>';
+        return;
+    }
+    select.innerHTML = '<option disabled>Loading members…</option>';
+    try {
+        const res = await api(`/groups/${groupId}/members`);
+        const members = res.data || res;
+        select.innerHTML = members.length
+            ? members.map(m => `<option value="${m.user_id}">${m.full_name}</option>`).join('')
+            : '<option disabled>No members in this group.</option>';
+    } catch (err) {
+        console.error('Could not load group members', err);
+        select.innerHTML = '<option disabled>Failed to load members.</option>';
+    }
+}
+
+document.getElementById('excludeGroup').addEventListener('change', (e) => {
+    loadMembersForExclusion(e.target.value);
+});
 
 function renderPosts(posts) {
     document.getElementById('posts').innerHTML = posts.map(p => `
@@ -77,16 +124,20 @@ async function flagPost(postId) {
 
 document.getElementById('postForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const excludeRaw = document.getElementById('excludeIds').value.trim();
-    const exclude_user_ids = excludeRaw ? excludeRaw.split(',').map(s => parseInt(s.trim())) : [];
+    const exclude_user_ids = Array.from(document.getElementById('excludeUsers').selectedOptions)
+        .map(opt => parseInt(opt.value))
+        .filter(id => !isNaN(id));
     await api(`/topics/${topicId}/posts`, {
         method: 'POST',
         body: { content: document.getElementById('postContent').value, exclude_user_ids },
     });
     e.target.reset();
+    document.getElementById('excludeGroup').value = '';
+    loadMembersForExclusion(null);
     loadTopic();
 });
 
 loadTopic();
+loadGroupsForExclusion();
 </script>
 @endsection
