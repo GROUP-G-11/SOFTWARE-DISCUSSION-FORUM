@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Smart Discussion Forum')</title>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title><?php echo $__env->yieldContent('title', 'Smart Discussion Forum'); ?></title>
+    <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
     <style>
         :root {
             --ink: #1c2b33;
@@ -94,13 +94,13 @@
     <header class="topbar">
         <div class="brand">Smart Discussion Forum</div>
         <nav>
-            <a href="{{ route('dashboard') }}" class="{{ request()->is('dashboard') ? 'active' : '' }}">Dashboard</a>
-            <a href="/profile" class="{{ request()->is('profile') ? 'active' : '' }}">My Profile</a>
+            <a href="<?php echo e(route('dashboard')); ?>" class="<?php echo e(request()->is('dashboard') ? 'active' : ''); ?>">Dashboard</a>
+            <a href="/profile" class="<?php echo e(request()->is('profile') ? 'active' : ''); ?>">My Profile</a>
             <a href="#" id="logoutLink">Log out</a>
         </nav>
     </header>
     <main>
-        @yield('content')
+        <?php echo $__env->yieldContent('content'); ?>
     </main>
     <script>
         // Every API call attaches the bearer token stored at login.
@@ -126,6 +126,6 @@
             window.location = '/';
         });
     </script>
-    @yield('scripts')
+    <?php echo $__env->yieldContent('scripts'); ?>
 </body>
-</html>
+</html><?php /**PATH /data/data/com.termux/files/home/forumG/resources/views/layouts/app.blade.php ENDPATH**/ ?>

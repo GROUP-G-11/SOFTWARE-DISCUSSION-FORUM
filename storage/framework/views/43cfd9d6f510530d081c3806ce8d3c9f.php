@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Topic'); ?>
 
-@section('title', 'Topic')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="eyebrow" id="topicCategory">Topic</div>
 <h1 id="topicTitle">Loading…</h1>
 <a class="btn secondary" id="exportLink" href="#" target="_blank">Export to PDF</a>
@@ -30,11 +28,11 @@
         <button class="btn secondary" onclick="closeProfileModal()" style="margin-top:12px;">Close</button>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('scripts')
+<?php $__env->startSection('scripts'); ?>
 <script>
-const topicId = {{ $topic }};
+const topicId = <?php echo e($topic); ?>;
 
 async function loadTopic() {
     const t = await api(`/topics/${topicId}`);
@@ -144,4 +142,5 @@ function closeProfileModal() {
 
 loadTopic();
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH /data/data/com.termux/files/home/forumG/resources/views/topics/show.blade.php ENDPATH**/ ?>

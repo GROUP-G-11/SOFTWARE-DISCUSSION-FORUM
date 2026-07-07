@@ -1,5 +1,6 @@
 /vendor
 /node_modules
+<<<<<<< HEAD
 
 /.env
 /.env.backup
@@ -25,3 +26,10 @@ yarn-error.log
 .vscode
 .DS_Store
 Thumbs.db
+=======
+.env
+/storage/*.key
+/public/storage
+/public/hot
+.phpunit.result.cache
+>>>>>>> main
