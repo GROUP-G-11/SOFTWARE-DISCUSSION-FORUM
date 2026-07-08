@@ -22,3 +22,9 @@ Route::view('/profile', 'dashboard.profile')->name('profile');
 
 
 
+Route::view('/profile', 'profile.edit')->name('profile.edit');
+
+/* group rules*/
+Route::get('/group-rules', function () {
+    return view('grouprules');
+});
