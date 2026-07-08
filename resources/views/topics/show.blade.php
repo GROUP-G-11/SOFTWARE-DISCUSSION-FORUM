@@ -110,7 +110,7 @@
 
         <label for="excludeGroup" class="muted" style="display:block; margin-top:8px;">Exclude members of group (optional)</label>
         <select id="excludeGroup" style="margin-bottom:6px;">
-            <option value="">— Select a group —</option>
+            <option value="">**** Select a group ****</option>
         </select>
 
         <label for="excludeUsers" class="muted" style="display:block;">Exclude specific users (optional)</label>
