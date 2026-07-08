@@ -67,7 +67,7 @@ display: flex;    align-items: center;    gap: 10px;    cursor: pointer;    font
     </div>
 
     <!-- Lecturer's own quizzes: publish/close + view results -->
-    <h2>Your quizzes</h2>
+    <h2>QUIZZES</h2>
     <div id="lecturerQuizzes" class="card muted">Loading your quizzes…</div>
 </div>
 
@@ -95,7 +95,7 @@ display: flex;    align-items: center;    gap: 10px;    cursor: pointer;    font
             <button class="btn" type="submit">Create group</button>
         </form>
     </div>
-<h2>Your groups</h2>
+<h2>Groups</h2>
 <div id="groups"></div>
 
 <!-- Join Group Card -->

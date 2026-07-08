@@ -480,50 +480,51 @@ function closeProfileModal() {
 
 window.downloadPDF = async function() {
     try {
-        // Find the token wherever your application stores it (localStorage, cookies, or meta tag)
-        const token = localStorage.getItem('token') || document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const targetUrl = window.location.origin + `/api/topics/${topicId}/export`;
         
-        const headers = {};
+        // Grab the correct token name used by your Smart Discussion Forum login system
+        const token = localStorage.getItem('sdf_token');
+
+        const headers = {
+            'Accept': 'application/pdf'
+        };
+
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
-            headers['X-CSRF-TOKEN'] = token;
         }
 
-        // Hit the endpoint. Note: adjust path to matching '/api/topics/...' or '/topics/.../export' based on backend setup
-        const response = await fetch(`/api/topics/${topicId}/export`, {
+        const response = await fetch(targetUrl, {
             method: 'GET',
             headers: headers
         });
 
         if (!response.ok) {
-            // Read backend error message if there is one
-            const errorText = await response.text();
-            throw new Error(`PDF generation failed: ${response.status} ${response.statusText}. ${errorText}`);
+            const errBody = await response.text();
+            throw new Error(`Server returned status ${response.status}`);
         }
 
-        const blob = await response.blob();
-        if (blob.size === 0) {
-            throw new Error("Received an empty file from the server.");
+        const pdfBlob = await response.blob();
+        
+        if (pdfBlob.size === 0) {
+            throw new Error("The server generated an empty stream.");
         }
+
+        const blobUrl = window.URL.createObjectURL(pdfBlob);
+        const downloadLink = document.createElement('a');
+        downloadLink.style.display = 'none';
+        downloadLink.href = blobUrl;
+        downloadLink.download = `topic-${topicId}.pdf`;
         
-        // Force the browser to trigger a genuine system-level download layout prompt
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `topic-${topicId}.pdf`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
         
-        document.body.appendChild(a);
-        a.click();
-        
-        // Clean up immediately after execution thread terminates
         setTimeout(() => {
-            a.remove();
-            window.URL.revokeObjectURL(url);
-        }, 100);
+            downloadLink.remove();
+            window.URL.revokeObjectURL(blobUrl);
+        }, 150);
 
     } catch (err) {
-        console.error('Could not export PDF:', err);
+        console.error('PDF Export Breakdown:', err);
         alert(`Failed to export PDF: ${err.message}`);
     }
 }

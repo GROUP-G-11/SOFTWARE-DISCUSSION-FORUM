@@ -18,6 +18,9 @@ Route::view('/topics/{topic}', 'topics.show')->name('topics.show');
 Route::view('/quizzes/{quiz}', 'quizzes.attempt')->name('quizzes.attempt');
 Route::view('/admin/statistics/{group}', 'admin.statistics')->name('admin.statistics');
 Route::view('/groups/{group}/gradebook', 'groups.gradebook')->name('groups.gradebook');
+Route::view('/profile', 'dashboard.profile')->name('profile');
+
+
 
 Route::view('/profile', 'profile.edit')->name('profile.edit');
 

@@ -1,7 +1,4 @@
-/vendor
-/node_modules
-.env
-/storage/*.key
-/public/storage
-/public/hot
-.phpunit.result.cache
+ cc2a129f004bb8e8f93894a88f20b4deb925ccdf
+/storage/framework/views/*
+/storage/logs/*
+/vendor/

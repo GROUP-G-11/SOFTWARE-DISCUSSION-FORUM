@@ -6,8 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Topic;
 use App\Services\TopicClassifierService;
+use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+
+
+
+
+
+ // Ensure you have barryvdh/laravel-dompdf installed
+
+
+
 
 /**
  * Topic Management and Export Module (SDD 5.3).
@@ -34,6 +44,20 @@ class TopicController extends Controller
         return response()->json(
             $group->topics()->withCount('posts')->latest()->paginate(20)
         );
+    }
+    public function downloadPdf(Topic $topic)
+    {
+        // Eager load data to optimize database queries
+        $topic->load(['group', 'creator', 'posts.author', 'posts.replies.author']);
+
+        // Load the view and inject our topic data
+        $pdf = Pdf::loadView('forum.topic_export', compact('topic'));
+
+        // Generate a clean slug-based filename based on the topic title
+        $filename = Str::slug($topic->title) . '-discussion-history.pdf';
+
+        // Return PDF file download response directly to browser
+        return $pdf->download($filename);
     }
 
     /** Launching new discussion topic thread use case (SDD Table 33). */
