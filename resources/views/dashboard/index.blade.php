@@ -41,7 +41,7 @@
 </div>
 
 <!-- Lecturer's own quizzes: publish/close + view results -->
-<h2>Your quizzes</h2>
+<h2>Quizzes</h2>
 <div id="lecturerQuizzes" class="card empty-state">Loading your quizzes…</div>
 </div>
 
