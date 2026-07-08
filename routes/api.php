@@ -172,5 +172,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
     ->name('topics.download_pdf');
+    
+
 
 });
