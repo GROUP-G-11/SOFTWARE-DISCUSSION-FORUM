@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>
                 <div>
-                    <a class="btn" href="/admin/statistics/${g.group_id}" style="background-color: #e11d48; padding: 6px 14px; font-size: 13px;">View Analytics</a>
+                    <a class="btn" href="/admin/statistics/${g.group_id}" style="background-color: #2f6f5f; padding: 6px 14px; font-size: 13px;">View Analytics</a>
                 </div>
             </div>
         `).join('');

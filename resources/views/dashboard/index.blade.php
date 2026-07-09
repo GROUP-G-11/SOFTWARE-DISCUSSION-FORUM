@@ -66,9 +66,47 @@ display: flex;    align-items: center;    gap: 10px;    cursor: pointer;    font
 
     </div>
 
+
     <!-- Lecturer's own quizzes: publish/close + view results -->
     <h2>QUIZZES</h2>
     <div id="lecturerQuizzes" class="card muted">Loading your quizzes…</div>
+
+    
+     <!-- Scoring Criteria Card: WITHOUT at least one row here for an activity
+         type, participation from posts/replies/quiz attempts is silently
+         never recorded — see recordParticipation() in TracksParticipation. -->
+    <div class="card" style="border-left: 4px solid #16a34a; margin-bottom: 20px;">
+        <h3>Scoring Criteria</h3>
+        <p class="muted">Define how much each activity is worth per group. A group with no criteria for an activity type earns students zero participation points for it, even if they post.</p>
+
+        <label>Group:</label>
+        <select id="criteriaGroupId" style="width: 100%; padding: 6px; margin-bottom: 10px;"></select>
+
+        <div id="criteriaList" class="muted" style="margin-bottom: 12px;">Select a group above.</div>
+
+        <form id="criteriaForm" style="border-top: 1px solid #e2e8f0; padding-top: 12px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="flex: 2; min-width: 160px;">
+                    <label>Description</label>
+                    <input type="text" id="criteriaDescription" placeholder="e.g. Discussion post" required style="width: 100%; padding: 6px;">
+                </div>
+                <div style="flex: 1; min-width: 140px;">
+                    <label>Activity type</label>
+                    <select id="criteriaActivityType" style="width: 100%; padding: 6px;">
+                        <option value="post">Post</option>
+                        <option value="reply">Reply</option>
+                        <option value="quiz_attempt">Quiz attempt</option>
+                        <option value="topic_creation">Topic creation</option>
+                    </select>
+                </div>
+                <div style="width: 100px;">
+                    <label>Max marks</label>
+                    <input type="number" id="criteriaMaxMarks" min="0" step="0.5" value="10" required style="width: 100%; padding: 6px;">
+                </div>
+                <button class="btn" type="submit" style="padding: 8px 16px;">Add rule</button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- STUDENT HUB VIEW -->
@@ -204,12 +242,19 @@ display: flex;    align-items: center;    gap: 10px;    cursor: pointer;    font
             </div>
         `).join('') || '<div class="muted">You are not in any groups yet.</div>';
 
-        const dropdown = document.getElementById('quizGroupId');
-        if (dropdown && groups.length > 0) {
-            dropdown.innerHTML = groups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
-        } else if (dropdown) {
-            dropdown.innerHTML = '<option value="" disabled>Create a group first</option>';
-        }
+       // 🎯 POPULATE ALL THREE DROPDOWNS AT ONCE
+const dropdownIds = ['quizGroupId', 'criteriaGroupId', 'joinGroupId'];
+
+dropdownIds.forEach(id => {
+    const dropdown = document.getElementById(id);
+    if (dropdown && groups.length > 0) {
+        dropdown.innerHTML = '<option value="">Select a group</option>' + 
+            groups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
+    } else if (dropdown) {
+        dropdown.innerHTML = '<option value="" disabled>Create a group first</option>';
+    }
+});
+
     }
 
     /* ---------------- Lecturer: manage own quizzes ---------------- */
