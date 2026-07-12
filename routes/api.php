@@ -73,6 +73,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Posts, replies, moderation (part of 5.2 + 5.3)
     // -------------------------------------------------------------
     Route::get('/topics/{topic}/posts', [PostController::class, 'index']);
+    Route::get('/topics/{id}', [TopicController::class, 'show']);
     Route::post('/topics/{topic}/posts', [PostController::class, 'store']);
     Route::delete('/posts/{post}', [PostController::class, 'destroy']);
     Route::post('/posts/{post}/flag', [PostController::class, 'flag'])

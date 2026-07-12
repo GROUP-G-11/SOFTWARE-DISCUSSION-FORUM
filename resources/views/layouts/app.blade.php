@@ -118,7 +118,12 @@
                 },
                 body: options.body ? JSON.stringify(options.body) : undefined,
             });
-            if (res.status === 401) { window.location = '/'; return; }
+            if (res.status === 401) { window.location = '/'; return null; }
+            const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+        console.error('Expected JSON, got:', contentType, 'for', path);
+        return null;
+    }
             return res.json();
         }
         document.getElementById('logoutLink')?.addEventListener('click', async (e) => {
@@ -150,6 +155,7 @@
             }
         });
     </script>
-    @yield('scripts')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+@yield('scripts')
 </body>
 </html>
