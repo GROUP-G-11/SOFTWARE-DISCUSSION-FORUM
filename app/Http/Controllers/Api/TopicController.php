@@ -10,14 +10,7 @@ use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
-
-
-
-
  // Ensure you have barryvdh/laravel-dompdf installed
-
-
-
 
 /**
  * Topic Management and Export Module (SDD 5.3).
@@ -45,10 +38,20 @@ class TopicController extends Controller
             $group->topics()->withCount('posts')->latest()->paginate(20)
         );
     }
-    public function downloadPdf(Topic $topic)
+    
+    public function downloadPdf(Request $request, Topic $topic)
     {
-        // Eager load data to optimize database queries
-        $topic->load(['group', 'creator', 'posts.author', 'posts.replies.author']);
+        $userId = $request->user()?->user_id ?? auth()->id();
+
+        // Eager load data securely by filtering out selective communication exclusions
+        $topic->load([
+            'group', 
+            'creator', 
+            'posts' => function ($query) use ($userId) {
+                $query->whereDoesntHave('exclusions', fn ($q) => $q->where('excluded_user_id', $userId))
+                      ->with(['author', 'replies.author']);
+            }
+        ]);
 
         // Load the view and inject our topic data
         $pdf = Pdf::loadView('forum.topic_export', compact('topic'));
@@ -69,7 +72,6 @@ class TopicController extends Controller
            if (! $request->user()->isMemberOf($group->group_id)) {
             return response()->json(['message' => 'You must be a member of this group to start a topic.'], 403);
         }
-
 
         if ($request->user()->isBlacklistedIn($group->group_id)) {
             return response()->json(['message' => 'You are blacklisted from posting in this group.'], 403);
@@ -93,16 +95,33 @@ class TopicController extends Controller
             return response()->json(['message' => 'You must be a member of this topic\'s group to view it.'], 403);
         }
 
+        $userId = $request->user()->user_id;
 
+        // Selective communication filter: hide thread posts that exclude the active viewer
         return response()->json(
-            $topic->load(['creator', 'posts.author', 'posts.replies.author'])
+            $topic->load([
+                'creator', 
+                'posts' => function ($query) use ($userId) {
+                    $query->whereDoesntHave('exclusions', fn ($q) => $q->where('excluded_user_id', $userId))
+                          ->with(['author', 'replies.author']);
+                }
+            ])
         );
     }
 
     /** Post export use case (SDD Table 34): export a filtered topic thread to PDF. */
-    public function export(Topic $topic)
+    public function export(Request $request, Topic $topic)
     {
-        $topic->load(['creator', 'group', 'posts.author', 'posts.replies.author']);
+        $userId = $request->user()?->user_id ?? auth()->id();
+
+        $topic->load([
+            'creator', 
+            'group', 
+            'posts' => function ($query) use ($userId) {
+                $query->whereDoesntHave('exclusions', fn ($q) => $q->where('excluded_user_id', $userId))
+                      ->with(['author', 'replies.author']);
+            }
+        ]);
 
         $pdf = Pdf::loadView('topics.export', ['topic' => $topic]);
 

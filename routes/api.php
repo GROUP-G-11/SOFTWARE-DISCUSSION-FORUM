@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::patch('/me', [ProfileController::class, 'update']);
     Route::post('/me/profile-picture', [ProfileController::class, 'updatePicture']);
-  Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
+    Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
 
     // -------------------------------------------------------------
     // 5.1 Role Management (Administrator only)
@@ -68,6 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('blacklist');
     Route::get('/topics/{topic}', [TopicController::class, 'show']);
     Route::get('/topics/{topic}/export', [TopicController::class, 'export']);
+    Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
+        ->name('topics.download_pdf');
 
     // -------------------------------------------------------------
     // Posts, replies, moderation (part of 5.2 + 5.3)
@@ -172,11 +174,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
-    
-
-Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
-    ->name('topics.download_pdf');
-    
-
 
 });

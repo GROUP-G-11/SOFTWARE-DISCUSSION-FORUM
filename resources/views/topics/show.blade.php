@@ -29,6 +29,7 @@
     .bubble.is-flagged { outline: 2px solid var(--warn); }
 
     .bubble-author { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+    .bubble-author:hover { text-decoration: underline; }
     .msg-group.mine .bubble-author { display: none; }
     .bubble-content { white-space: pre-wrap; }
     .bubble-meta { font-size: 10.5px; color: var(--slate); margin-top: 3px; text-align: right; }
@@ -67,11 +68,11 @@
     .share-menu button:hover { background: var(--paper); }
     .share-menu svg { width: 16px; height: 16px; flex-shrink: 0; }
 
-    /* Replies rendered as their own chat rows, indented slightly to show they belong to the post above */
+    /* Replies */
     .reply-row { margin-left: 22px; margin-top: 2px; }
     .reply-row .bubble { font-size: 13.5px; }
 
-    /* ---------- Composer (bottom bar, WhatsApp-style) ---------- */
+    /* ---------- Composer ---------- */
     .composer {
         display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
         background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 8px 8px 8px 16px;
@@ -97,26 +98,50 @@
         width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
     .reply-composer button svg { width: 14px; height: 14px; }
+    
+    /* Checkbox list container mapping */
+    .checkbox-scroll-box {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        max-height: 160px;
+        overflow-y: auto;
+        padding: 8px 12px;
+        margin-top: 6px;
+        margin-bottom: 12px;
+    }
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 0;
+        font-size: 13.5px;
+        cursor: pointer;
+        color: var(--ink);
+    }
+    .checkbox-item input {
+        cursor: pointer;
+        width: 15px;
+        height: 15px;
+    }
 </style>
 
-<div class="eyebrow" id="topicCategory">Topic</div>
-<h1 id="topicTitle">Loading Topic...</h1>
-<button class="btn secondary" onclick="downloadPDF()">Export to PDF</button>
-
 <div class="card">
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="eyebrow" id="topicCategory">Topic</div>
+        <button class="icon-btn" onclick="downloadPDF()" title="Download PDF Export" style="width: 32px; height: 32px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+    </div>
+    <h1 id="topicTitle" style="margin-top: 4px;">Loading Topic...</h1>
     <h3>Write a post</h3>
     <form id="postFormCard">
         <textarea id="postContentCard" rows="3" placeholder="Share your thoughts…" required></textarea>
 
-        <label for="excludeGroup" class="muted" style="display:block; margin-top:8px;">Exclude members of group (optional)</label>
-        <select id="excludeGroup" style="margin-bottom:6px;">
-            <option value="">**** Select a group ****</option>
-        </select>
-
-        <label for="excludeUsers" class="muted" style="display:block;">Exclude specific users (optional)</label>
-        <select id="excludeUsers" multiple style="min-height:100px; margin-bottom:10px;">
-            <option disabled>Select a group above to load its members…</option>
-        </select>
+        <label class="muted" style="display:block; margin-top: 12px;">Group Member Exclusions (Check users to hide this post from them):</label>
+        <div class="checkbox-scroll-box" id="excludeUsersCheckboxContainer">
+            <div class="muted" style="font-size:13px; padding:4px 0;">Loading members list…</div>
+        </div>
 
         <button class="btn" type="submit">Post</button>
     </form>
@@ -147,13 +172,10 @@
 
 @section('scripts')
 <script>
-// Use standard Laravel blade echo if global window var isn't used elsewhere
 const topicId = parseInt("{{ $topic }}") || null;
-
 let currentUserRole = 'Student';
 let currentUserId = null;
 
-/* ---------------- Inline icon library ---------------- */
 const ICONS = {
     flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="2"/></svg>',
     share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.6" x2="15.4" y2="6.4"/><line x1="8.6" y1="13.4" x2="15.4" y2="17.6"/></svg>',
@@ -165,14 +187,12 @@ const ICONS = {
     link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/></svg>',
 };
 
-// Safe API wrapper check
 async function executeApiCall(url, config = {}) {
     if (typeof api === 'function') {
         return await api(url, config);
-    } else {
-        console.error("The custom global wrapper function 'api()' was not found in your layout.");
-        return null;
     }
+    console.error("The custom global wrapper function 'api()' was not found in your layout.");
+    return null;
 }
 
 function timeOnly(dt) {
@@ -191,7 +211,6 @@ async function loadCurrentUser() {
 async function loadTopic() {
     if(!topicId) return;
     const t = await executeApiCall(`/topics/${topicId}`);
-    
     const titleEl = document.getElementById('topicTitle');
     const categoryEl = document.getElementById('topicCategory');
     const postsContainer = document.getElementById('posts');
@@ -206,52 +225,52 @@ async function loadTopic() {
     if(categoryEl) categoryEl.textContent = t.category ?? 'General';
     
     renderPosts(t.posts || []);
-    
-    if(postsContainer) {
-        postsContainer.scrollTop = postsContainer.scrollHeight;
-    }
-}
+    if(postsContainer) postsContainer.scrollTop = postsContainer.scrollHeight;
 
-async function loadGroupsForExclusion() {
-    const select = document.getElementById('excludeGroup');
-    if(!select) return;
-    try {
-        const res = await executeApiCall('/groups');
-        if(!res) return;
-        const groups = res.data || res;
-        select.innerHTML = '<option value="">— Select a group —</option>' +
-            groups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('');
-    } catch (err) {
-        console.error('Could not load groups', err);
-    }
+    const targetGroupId = t.group_id || null;
+    loadMembersForExclusion(targetGroupId);
 }
 
 async function loadMembersForExclusion(groupId) {
-    const select = document.getElementById('excludeUsers');
-    if(!select) return;
-    if (!groupId) {
-        select.innerHTML = '<option disabled>Select a group above to load its members…</option>';
-        return;
-    }
-    select.innerHTML = '<option disabled>Loading members…</option>';
+    const container = document.getElementById('excludeUsersCheckboxContainer');
+    if(!container) return;
+    
+    container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0;">Loading members…</div>';
     try {
-        const res = await executeApiCall(`/groups/${groupId}/members`);
-        if(!res) return;
-        const members = res.data || res;
-        select.innerHTML = members.length
-            ? members.map(m => `<option value="${m.user_id}">${m.full_name || m.name}</option>`).join('')
-            : '<option disabled>No members in this group.</option>';
+        const endpoint = groupId ? `/groups/${groupId}/members` : '/users';
+        const res = await executeApiCall(endpoint);
+        if(!res) {
+            container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0;">No users found matching this scope.</div>';
+            return;
+        }
+        
+        let members = [];
+        if (Array.isArray(res)) {
+            members = res;
+        } else if (res.data && Array.isArray(res.data)) {
+            members = res.data;
+        } else if (res.users && Array.isArray(res.users)) {
+            members = res.users;
+        }
+        
+        if(members.length) {
+            container.innerHTML = members.map(m => {
+                const uid = m.user_id || m.id;
+                const name = m.full_name || m.name || 'Unknown User';
+                return `
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="exclude_users_checkbox" value="${uid}">
+                        <span>${name}</span>
+                    </label>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0;">No users found matching this scope.</div>';
+        }
     } catch (err) {
-        console.error('Could not load group members', err);
-        select.innerHTML = '<option disabled>Failed to load members.</option>';
+        console.error('Could not load scope members', err);
+        container.innerHTML = '<div class="muted" style="font-size:13px; padding:4px 0; color:var(--warn);">Failed to load options list.</div>';
     }
-}
-
-const excludeGroupEl = document.getElementById('excludeGroup');
-if(excludeGroupEl) {
-    excludeGroupEl.addEventListener('change', (e) => {
-        loadMembersForExclusion(e.target.value);
-    });
 }
 
 function actionsHtml(kind, id, isFlagged, canFlag) {
@@ -280,12 +299,6 @@ function actionsHtml(kind, id, isFlagged, canFlag) {
     `;
 }
 
-function authorLink(author) {
-    if (!author) return 'Unknown';
-    const name = author.full_name || author.name || "Unknown User";
-    return `<span class="author-link" style="cursor:pointer; text-decoration:underline;" onclick="viewProfile(${author.user_id})">${name}</span>`;
-}
-
 function renderPosts(posts) {
     const container = document.getElementById('posts');
     if(!container) return;
@@ -304,7 +317,7 @@ function renderPosts(posts) {
             return `
                 <div class="msg-group ${replySide} reply-row" id="reply-${r.reply_id}">
                     <div class="bubble ${r.is_flagged ? 'is-flagged' : ''}">
-                        <div class="bubble-author">${replyAuthorName}</div>
+                        <div class="bubble-author" style="cursor:pointer;" onclick="viewProfile(${r.author_id})">${replyAuthorName}</div>
                         <div class="bubble-content">${r.content}</div>
                         <div class="bubble-meta">${r.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}${timeOnly(r.replied_at || r.created_at)}</div>
                     </div>
@@ -316,15 +329,13 @@ function renderPosts(posts) {
         return `
             <div class="msg-group ${side}" id="post-${p.post_id}">
                 <div class="bubble ${p.is_flagged ? 'is-flagged' : ''}">
-                    <div class="bubble-author">${authorName}</div>
+                    <div class="bubble-author" style="cursor:pointer;" onclick="viewProfile(${p.author_id})">${authorName}</div>
                     <div class="bubble-content">${p.content}</div>
                     <div class="bubble-meta">${p.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}${timeOnly(p.posted_at || p.created_at)}</div>
                 </div>
                 ${actionsHtml('post', p.post_id, p.is_flagged, canFlag)}
             </div>
-
             ${repliesHtml}
-
             <div class="reply-composer">
                 <input type="text" id="reply-input-${p.post_id}" placeholder="Reply…"
                     onkeydown="if(event.key==='Enter'){ submitReply(${p.post_id}); }">
@@ -362,27 +373,17 @@ document.addEventListener('click', (e) => {
 async function shareToSocial(postId, platform) {
     const res = await executeApiCall(`/posts/${postId}/share`, { method: 'POST', body: { platform } });
     document.querySelectorAll('.share-menu.open').forEach(m => m.classList.remove('open'));
-
     if (!res || res.message) {
         alert((res && res.message) || 'This content could not be shared.');
         return;
     }
-
     const shareUrl = res.shared_url || `${window.location.origin}/topics/${topicId}#post-${postId}`;
 
     switch (platform) {
-        case 'WhatsApp':
-            window.open(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
-        case 'Twitter':
-            window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
-        case 'Facebook':
-            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
-        case 'LinkedIn':
-            window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank');
-            break;
+        case 'WhatsApp': window.open(`https://wa.me/?text=${encodeURIComponent(shareUrl)}`, '_blank'); break;
+        case 'Twitter': window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`, '_blank'); break;
+        case 'Facebook': window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank'); break;
+        case 'LinkedIn': window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank'); break;
         case 'Clipboard':
         default:
             try {
@@ -403,24 +404,26 @@ async function flagItem(endpoint) {
     loadTopic();
 }
 
-/* Form submission hooks safely mounted */
 const cardForm = document.getElementById('postFormCard');
 if(cardForm) {
     cardForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const excludeSelect = document.getElementById('excludeUsers');
-        const exclude_user_ids = excludeSelect ? Array.from(excludeSelect.selectedOptions)
-            .map(opt => parseInt(opt.value))
-            .filter(id => !isNaN(id)) : [];
+        
+        const checkedBoxes = document.querySelectorAll('input[name="exclude_users_checkbox"]:checked');
+        const exclude_ids = Array.from(checkedBoxes)
+            .map(cb => parseInt(cb.value))
+            .filter(id => !isNaN(id));
             
         await executeApiCall(`/topics/${topicId}/posts`, {
             method: 'POST',
-            body: { content: document.getElementById('postContentCard').value, exclude_user_ids },
+            body: { 
+                content: document.getElementById('postContentCard').value, 
+                exclude_user_ids: exclude_ids,
+                exclude_users: exclude_ids,
+                excluded_user_ids: exclude_ids
+            },
         });
         e.target.reset();
-        const exGroup = document.getElementById('excludeGroup');
-        if(exGroup) exGroup.value = '';
-        loadMembersForExclusion(null);
         loadTopic();
     });
 }
@@ -432,7 +435,7 @@ if(composerForm) {
         const textarea = document.getElementById('postContentComposer');
         const res = await executeApiCall(`/topics/${topicId}/posts`, {
             method: 'POST',
-            body: { content: textarea.value, exclude_user_ids: [] },
+            body: { content: textarea.value, exclude_user_ids: [], exclude_users: [], excluded_user_ids: [] },
         });
         if (res && res.message && !res.author) {
             alert(res.message);
@@ -470,7 +473,6 @@ async function viewProfile(userId) {
         fallback.style.display = 'flex';
         fallback.textContent = (profile.full_name || profile.name || '?').substring(0, 2).toUpperCase();
     }
-
     document.getElementById('profileModal').style.display = 'flex';
 }
 
@@ -481,33 +483,15 @@ function closeProfileModal() {
 window.downloadPDF = async function() {
     try {
         const targetUrl = window.location.origin + `/api/topics/${topicId}/export`;
-        
-        // Grab the correct token name used by your Smart Discussion Forum login system
         const token = localStorage.getItem('sdf_token');
+        const headers = { 'Accept': 'application/pdf' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
 
-        const headers = {
-            'Accept': 'application/pdf'
-        };
-
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(targetUrl, {
-            method: 'GET',
-            headers: headers
-        });
-
-        if (!response.ok) {
-            const errBody = await response.text();
-            throw new Error(`Server returned status ${response.status}`);
-        }
+        const response = await fetch(targetUrl, { method: 'GET', headers: headers });
+        if (!response.ok) throw new Error(`Server returned status ${response.status}`);
 
         const pdfBlob = await response.blob();
-        
-        if (pdfBlob.size === 0) {
-            throw new Error("The server generated an empty stream.");
-        }
+        if (pdfBlob.size === 0) throw new Error("The server generated an empty stream.");
 
         const blobUrl = window.URL.createObjectURL(pdfBlob);
         const downloadLink = document.createElement('a');
@@ -522,11 +506,16 @@ window.downloadPDF = async function() {
             downloadLink.remove();
             window.URL.revokeObjectURL(blobUrl);
         }, 150);
-
     } catch (err) {
         console.error('PDF Export Breakdown:', err);
         alert(`Failed to export PDF: ${err.message}`);
     }
 }
+
+// Global initialization
+document.addEventListener('DOMContentLoaded', () => {
+    loadCurrentUser();
+    loadTopic();
+});
 </script>
 @endsection
