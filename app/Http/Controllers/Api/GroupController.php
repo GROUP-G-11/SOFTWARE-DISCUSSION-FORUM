@@ -18,13 +18,21 @@ class GroupController extends Controller
     {
         // Added 'members' to the eager-loading array to pass name details to the frontend dashboard
         $groups = Group::with('members')->withCount(['members', 'topics'])->paginate(20);
-        
+
         // Let the dashboard tell members apart from groups the student
         // hasn't joined yet, since only members may open a group's topics.
         $userId = $request->user()->user_id;
         $groups->getCollection()->transform(function (Group $group) use ($request, $userId) {
             $group->is_member = $request->user()->hasRole('Administrator')
                 || $group->members()->where('users.user_id', $userId)->exists();
+
+            // Same idea, but for the "Group Admin" panel: true only while
+            // this user has an *active* GroupAdmin row for this group
+            // (creating a group makes you one automatically - see store()).
+            $group->is_group_admin = GroupAdmin::where('user_id', $userId)
+                ->where('group_id', $group->group_id)
+                ->where('is_active', true)
+                ->exists();
 
             return $group;
         });

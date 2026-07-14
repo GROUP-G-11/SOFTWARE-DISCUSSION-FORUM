@@ -106,7 +106,7 @@
 <div class="dash-shell">
     <nav class="dash-sidebar">
         <a href="#" class="dash-sidebar-item" data-target="panel-groups"><span class="icon">👥</span> Groups</a>
-        <a href="#" class="dash-sidebar-item" id="groupAdminTab" data-target="panel-group-admin" style="display:none;"><span class="icon">🛡️</span> Group Admin</a>
+        <a href="#" class="dash-sidebar-item" id="groupAdminTab" data-target="panel-group-admin"><span class="icon">🛡️</span> Group Admin</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-grades"><span class="icon">🎓</span> My Grades</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-quizzes"><span class="icon">📝</span> Quizzes</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-recommendations"><span class="icon">✨</span> Recommendations</a>
@@ -323,9 +323,6 @@
 
     function renderGroupAdminPanel(groups) {
         const adminGroups = groups.filter(g => g.is_group_admin);
-        const tab = document.getElementById('groupAdminTab');
-
-        tab.style.display = adminGroups.length ? 'flex' : 'none';
 
         document.getElementById('groupAdminList').innerHTML = adminGroups.map(g => `
             <div class="card">
@@ -335,7 +332,7 @@
                     <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">View group statistics</a>
                 </div>
             </div>
-        `).join('');
+        `).join('') || '<div class="empty-state">You are not an active admin for any group yet.</div>';
     }
 
     function timeOnly(dt) {

@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::patch('/me', [ProfileController::class, 'update']);
     Route::post('/me/profile-picture', [ProfileController::class, 'updatePicture']);
-    Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
+  Route::get('/users/{userId}/profile', [ProfileController::class, 'show']);
 
     // -------------------------------------------------------------
     // 5.1 Role Management (Administrator only)
@@ -49,6 +49,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::get('/users/{user}', [UserController::class, 'show']);
         Route::patch('/users/{user}/role', [UserController::class, 'assignRole']);
+
+        // Admin dashboard: platform-wide overview (user/role counts, group
+        // counts, activity). Per-group stats below are handled separately
+        // since lecturers/group-admins need access to their own group only.
+        Route::get('/statistics/system', [StatisticsController::class, 'systemStatistics']);
     });
 
     // -------------------------------------------------------------
@@ -68,8 +73,6 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('blacklist');
     Route::get('/topics/{topic}', [TopicController::class, 'show']);
     Route::get('/topics/{topic}/export', [TopicController::class, 'export']);
-    Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
-        ->name('topics.download_pdf');
 
     // -------------------------------------------------------------
     // Posts, replies, moderation (part of 5.2 + 5.3)
@@ -149,13 +152,15 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // -------------------------------------------------------------
-    // 5.7 Statistics Module (Administrator and Lecturer)
+    // 5.7 Statistics Module (Administrator, group's Lecturer, or an
+    // active Group Admin for that specific group - Students who are
+    // group admins get access here too, scoped to their own group)
     // -------------------------------------------------------------
-    // WIDENED: lecturers now get analytics for their own groups too, so the
-    // lecturer dashboard can link straight into this page (previously
-    // Administrator-only).
-    Route::get('/groups/{group}/statistics', [StatisticsController::class, 'groupStatistics'])
-        ->middleware('role:Administrator,Lecturer');
+    // No role middleware here: access is per-group, not per-role, so it's
+    // enforced inside StatisticsController::groupStatistics() itself via
+    // authorizeGroupAccess(). A plain Student with no group-admin standing
+    // is rejected with a 403 from there.
+    Route::get('/groups/{group}/statistics', [StatisticsController::class, 'groupStatistics']);
 
     // -------------------------------------------------------------
     // 5.8 ML Classification and Recommendation
@@ -174,5 +179,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
     Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    
+
+Route::get('/topics/{topic}/download-pdf', [TopicController::class, 'downloadPdf'])
+    ->name('topics.download_pdf');
+    
+
 
 });
