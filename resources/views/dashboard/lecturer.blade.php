@@ -1,7 +1,7 @@
 @extends('layouts.app')
-
+ 
 @section('title', 'Lecturer Dashboard')
-
+ 
 @section('content')
 <style>
     /* ---------- Groups panel: single drill-down view (groups -> topics -> posts) ---------- */
@@ -131,15 +131,8 @@
 
 <div class="eyebrow">Lecturer Dashboard</div>
 <h1 id="welcome">Loading your dashboard…</h1>
-
+ 
 <div class="dash-shell">
-    <nav class="dash-sidebar">
-        <a href="#" class="dash-sidebar-item" data-target="panel-groups"><span class="icon">👥</span> My Groups</a>
-        <a href="#" class="dash-sidebar-item" data-target="panel-quizzes"><span class="icon">📝</span> Quizzes</a>
-        <a href="#" class="dash-sidebar-item" data-target="panel-criteria"><span class="icon">📊</span> Scoring Criteria</a>
-        <a href="#" class="dash-sidebar-item" data-target="panel-notifications"><span class="icon">🔔</span> Notifications</a>
-    </nav>
-
     <div class="dash-main">
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
@@ -199,12 +192,12 @@
             <div class="section-title"><h2 style="margin:0;">Scoring Criteria</h2></div>
             <div class="card" style="border-left: 4px solid #16a34a;">
                 <p class="muted">Define how much each activity is worth per group. A group with no criteria for an activity type earns students zero participation points for it, even if they post.</p>
-
+ 
                 <label>Group:</label>
                 <select id="criteriaGroupId" style="width: 100%; padding: 6px; margin-bottom: 10px;"></select>
-
+ 
                 <div id="criteriaList" class="muted" style="margin-bottom: 12px;">Select a group above.</div>
-
+ 
                 <form id="criteriaForm" style="border-top: 1px solid #e2e8f0; padding-top: 12px;">
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end;">
                         <div style="flex: 2; min-width: 160px;">
@@ -256,22 +249,22 @@
     </div>
 </div>
 @endsection
-
+ 
 @section('scripts')
 <script>
     if (!localStorage.getItem('sdf_token')) { window.location.href = '/'; }
-
+ 
     let myGroups = [];
-
+ 
     async function loadWelcome() {
         const me = await loadCurrentUser();
         if (!me) return;
         if (window.CURRENT_ROLE === 'student') {
-            window.location.replace('/dashboard/student');
+            window.location.replace('/dashboard/student' + window.location.search);
             return;
         }
         if (window.CURRENT_ROLE === 'administrator') {
-            window.location.replace('/dashboard/admin');
+            window.location.replace('/dashboard/admin' + window.location.search);
             return;
         }
         document.getElementById('welcome').textContent = `Welcome, ${me.full_name}`;
@@ -692,7 +685,7 @@
     });
 
     let questionRowCount = 0;
-
+ 
     function addQuestionRow() {
         questionRowCount++;
         const wrapper = document.createElement('div');
@@ -722,16 +715,16 @@
             }
         });
     }
-
+ 
     document.getElementById('addQuestionBtn').addEventListener('click', addQuestionRow);
-
+ 
     function resetQuestionMatrix() {
         document.getElementById('questionMatrix').innerHTML = '';
         questionRowCount = 0;
         addQuestionRow();
     }
     resetQuestionMatrix();
-
+ 
     document.getElementById('quizConfigForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const groupId = document.getElementById('quizGroupId').value;
@@ -744,7 +737,7 @@
             correct_option: row.querySelector('.qCorrect').value,
             marks: parseInt(row.querySelector('.qMarks').value) || 1,
         }));
-
+ 
         const payload = {
             title: document.getElementById('quizTitle').value,
             scheduled_date: document.getElementById('scheduledDate').value,
@@ -752,7 +745,7 @@
             duration_minutes: parseInt(document.getElementById('durationMinutes').value),
             questions,
         };
-
+ 
         const res = await api(`/groups/${groupId}/quizzes`, { method: 'POST', body: payload });
         if (res && !res.errors) {
             alert(`Quiz scheduled with ${questions.length} question(s). It will open automatically at the scheduled time.`);
@@ -764,11 +757,11 @@
             alert('Failed to save. Check that every question row is filled in and start time is HH:MM (e.g. 14:00).');
         }
     });
-
+ 
     async function loadLecturerQuizzes() {
         const container = document.getElementById('lecturerQuizzes');
         const quizzes = await api('/me/quizzes') || [];
-
+ 
         container.innerHTML = quizzes.map(q => {
             const groupName = q.group?.name ?? 'Unknown group';
             const schedule = q.configuration ? `${q.configuration.scheduled_date} at ${q.configuration.start_time}` : '';
@@ -779,7 +772,7 @@
                 actions += `<button class="btn btn-secondary close-quiz-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">Close</button>`;
             }
             actions += `<button class="btn btn-secondary view-results-btn" type="button" data-quiz-id="${q.quiz_id}" style="padding: 6px 12px; font-size: 13px; margin-left: 6px;">View results</button>`;
-
+ 
             return `
                 <div class="card">
                     <strong>${q.title}</strong> <span class="muted">(${groupName})</span>
@@ -789,7 +782,7 @@
                 </div>
             `;
         }).join('') || '<div class="empty-state">You have not created any quizzes yet.</div>';
-
+ 
         container.querySelectorAll('.publish-quiz-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
                 await api(`/quizzes/${btn.dataset.quizId}/publish`, { method: 'POST' });
@@ -807,7 +800,7 @@
                 const quizId = btn.dataset.quizId;
                 const resultsBox = container.querySelector(`.quiz-results[data-quiz-id="${quizId}"]`);
                 if (resultsBox.style.display === 'block') { resultsBox.style.display = 'none'; return; }
-
+ 
                 const results = await api(`/quizzes/${quizId}/results`) || [];
                 resultsBox.innerHTML = results.length ? `
                     <table>
@@ -827,11 +820,11 @@
             });
         });
     }
-
+ 
     async function loadCriteriaList(groupId) {
         const listEl = document.getElementById('criteriaList');
         if (!groupId) { listEl.textContent = 'Select a group above.'; return; }
-
+ 
         listEl.textContent = 'Loading…';
         const criteria = await api(`/groups/${groupId}/scoring-criteria`) || [];
         listEl.innerHTML = criteria.length ? `
@@ -845,22 +838,22 @@
             </table>
         ` : '<div class="empty-state">No scoring criteria set for this group yet.</div>';
     }
-
+ 
     document.getElementById('criteriaGroupId').addEventListener('change', (e) => {
         loadCriteriaList(e.target.value);
     });
-
+ 
     document.getElementById('criteriaForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const groupId = document.getElementById('criteriaGroupId').value;
         if (!groupId) { alert('Please select a group first.'); return; }
-
+ 
         const payload = {
             description: document.getElementById('criteriaDescription').value,
             activity_type: document.getElementById('criteriaActivityType').value,
             max_marks: parseFloat(document.getElementById('criteriaMaxMarks').value),
         };
-
+ 
         const res = await api(`/groups/${groupId}/scoring-criteria`, { method: 'POST', body: payload });
         if (res && !res.errors) {
             e.target.reset();
@@ -870,7 +863,7 @@
             alert('Failed to save scoring criteria.');
         }
     });
-
+ 
     async function loadNotifications() {
         const data = await api('/notifications');
         const notifications = (data && (data.data || data)) || [];
@@ -878,15 +871,17 @@
             <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
         `).join('') || '<div class="empty-state">No notifications yet.</div>';
     }
-
+ 
     async function init() {
-        initDashSidebar();
+        initDashSidebar(document, 'panel-groups');
         await loadWelcome();
         await loadGroups();
         loadLecturerQuizzes();
         loadNotifications();
     }
-
+ 
     init();
 </script>
 @endsection
+ 
+

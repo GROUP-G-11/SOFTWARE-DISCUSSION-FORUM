@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\TracksParticipation;
 use App\Models\Post;
 use App\Models\Reply;
+use App\Models\User;
 use App\Services\NotificationService;
+use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
 
 /**
@@ -27,11 +29,6 @@ class ReplyController extends Controller
 
         $author = $request->user();
 
-        // pk added--------
-          if (! $author->isMemberOf($post->topic->group_id)) {
-            return response()->json(['message' => 'You must be a member of this post\'s group to reply.'], 403);
-        }
-
         if ($author->isBlacklistedIn($post->topic->group_id)) {
             return response()->json(['message' => 'You are blacklisted from replying in this group.'], 403);
         }
@@ -42,6 +39,10 @@ class ReplyController extends Controller
             'content' => $request->content,
             'replied_at' => now(),
         ]);
+        event(new MessageBroadcast($reply, $post->topic_id));
+        // event(new MessageBroadcast($post));
+
+       // event(new MessageBroadcast($post->topic_id, 'reply', $reply->load('author')->toArray()));
 
         $author->update(['last_active_at' => now()]);
         $this->recordParticipation($author, $post->topic->group_id, 'reply');
@@ -60,9 +61,25 @@ class ReplyController extends Controller
     }
 
     /** Content moderation: flag a reply as irrelevant/inappropriate. */
-    public function flag(Reply $reply)
+    public function flag(Request $request, Reply $reply)
     {
         $reply->update(['is_flagged' => true]);
+
+        $flagger = $request->user();
+        $topicTitle = $reply->post->topic->title ?? 'a topic';
+
+        // ADDED: mirrors PostController::flag() — every Administrator now
+        // gets notified when a reply is flagged, so it surfaces on the
+        // admin dashboard's Flagged Content list just like flagged posts.
+        User::role('Administrator')->get()->each(function (User $admin) use ($flagger, $reply, $topicTitle) {
+            $this->notifications->send(
+                $admin,
+                'Reply Flagged',
+                "{$flagger->full_name} flagged a reply in '{$topicTitle}' for moderation.",
+                'Reply',
+                $reply->reply_id
+            );
+        });
 
         return response()->json(['message' => 'Reply flagged for moderation.', 'reply' => $reply]);
     }
