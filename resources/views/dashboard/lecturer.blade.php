@@ -22,9 +22,8 @@
     .group-item .group-actions { flex-shrink: 0; display: flex; align-items: center; gap: 6px; }
     .group-item .group-actions a { font-size: 12px; }
 
-    /* Chat thread + composer, reused from the standalone topic page so the
-       inline preview here looks/feels the same. No fixed height/scrolling —
-       it simply grows with the conversation. */
+    /* Chat thread + composer, matching the student dashboard's inline
+       preview. No fixed height/scrolling — it grows with the conversation. */
     .chat-thread {
         display: flex; flex-direction: column; gap: 4px;
         background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
@@ -33,8 +32,6 @@
     .msg-group { display: flex; flex-direction: column; margin: 10px 0; max-width: 78%; }
     .msg-group.mine { align-self: flex-end; align-items: flex-end; }
     .msg-group.theirs { align-self: flex-start; align-items: flex-start; }
-    /* Reply thread: a connecting guide line + indent applied straight to the
-       message itself (one modifier class) instead of an extra wrapper div. */
     .msg-group.is-reply { margin-left: 26px; max-width: calc(78% - 26px); padding-left: 14px; border-left: 2px solid var(--line); }
 
     .bubble {
@@ -50,9 +47,13 @@
     .msg-actions { display: flex; align-items: center; gap: 8px; margin: 4px 2px 0; font-size: 11.5px; }
     .msg-group.mine .msg-actions { flex-direction: row-reverse; }
     .msg-actions .reply-link,
-    .msg-actions .forward-link { color: var(--accent); cursor: pointer; }
+    .msg-actions .forward-link,
+    .msg-actions .flag-link { color: var(--accent); cursor: pointer; }
     .msg-actions .reply-link:hover,
-    .msg-actions .forward-link:hover { text-decoration: underline; }
+    .msg-actions .forward-link:hover,
+    .msg-actions .flag-link:hover { text-decoration: underline; }
+    .msg-actions .flag-link { color: #e11d48; }
+    .msg-actions .flagged-label { color: #e11d48; font-weight: 600; }
     .msg-actions .msg-time { color: var(--slate); }
 
     .composer {
@@ -69,7 +70,6 @@
     }
     .composer-send svg { width: 18px; height: 18px; }
 
-    /* Icon button specific layout matching setup adjustments */
     .icon-btn {
         display: inline-flex; align-items: center; justify-content: center;
         background: transparent; border: none; color: var(--slate);
@@ -78,7 +78,7 @@
     .icon-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
     .icon-btn:hover { background: rgba(0,0,0,.06); color: var(--accent); }
 
-    /* ---------- Forward message modal ---------- */
+    /* ---------- Share-to-social modal ---------- */
     .modal-overlay {
         position: fixed; inset: 0; background: rgba(15, 23, 20, 0.45);
         display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px;
@@ -92,9 +92,13 @@
         background: #f3f8f5; border-left: 3px solid var(--accent); padding: 8px 10px;
         border-radius: 0 6px 6px 0; font-size: 13px; max-height: 90px; overflow-y: auto; white-space: pre-wrap;
     }
-    .modal-box select {
-        width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit;
+    .share-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .share-btn {
+        display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+        border: 1px solid var(--line); border-radius: 8px; background: #fff;
+        font-size: 13.5px; cursor: pointer; text-align: left;
     }
+    .share-btn:hover { background: #f3f8f5; border-color: var(--accent); }
 </style>
 
 <div class="eyebrow">Lecturer Dashboard</div>
@@ -102,7 +106,7 @@
 
 <div class="dash-shell">
     <nav class="dash-sidebar">
-        <a href="#" class="dash-sidebar-item" data-target="panel-groups"><span class="icon">👥</span> My Groups</a>
+        <a href="#" class="dash-sidebar-item" data-target="panel-groups"><span class="icon">👥</span>Groups</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-quizzes"><span class="icon">📝</span> Quizzes</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-criteria"><span class="icon">📊</span> Scoring Criteria</a>
         <a href="#" class="dash-sidebar-item" data-target="panel-notifications"><span class="icon">🔔</span> Notifications</a>
@@ -113,6 +117,11 @@
         <div class="dash-panel" id="panel-groups">
             <div class="section-title"><h2 style="margin:0;">Groups</h2></div>
             <p class="muted">Groups you own or administer. Statistics and the gradebook are only available for groups where you're the lecturer or an active group admin.</p>
+
+            <!-- Single drill-down view: groupsBrowserContent's innerHTML is
+                 fully swapped by JS between the groups list, a group's
+                 topics, and a topic's posts (with a "Back" link) — same
+                 pattern as the student dashboard. -->
             <div class="card" id="groupsBrowserContent">Loading groups…</div>
         </div>
 
@@ -206,20 +215,24 @@
     </div>
 </div>
 
-<div class="modal-overlay" id="forwardModalOverlay">
+<div class="modal-overlay" id="shareModalOverlay">
     <div class="modal-box">
-        <h3 style="margin-top:0;">Forward message</h3>
-        <div class="modal-preview" id="forwardPreview"></div>
+        <h3 style="margin-top:0;">Share message</h3>
+        <div class="modal-preview" id="sharePreview"></div>
 
-        <label class="muted" style="display:block; margin:14px 0 4px;">Group</label>
-        <select id="forwardGroupSelect"></select>
+        <div class="share-grid" style="margin-top:16px;">
+            <button type="button" class="share-btn" onclick="shareToPlatform('whatsapp')">💬 WhatsApp</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('facebook')">📘 Facebook</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('twitter')">✖️ X / Twitter</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('telegram')">✈️ Telegram</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('linkedin')">💼 LinkedIn</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('instagram')">📷 Instagram</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('email')">✉️ Email</button>
+            <button type="button" class="share-btn" onclick="shareToPlatform('copy')">🔗 Copy text</button>
+        </div>
 
-        <label class="muted" style="display:block; margin:12px 0 4px;">Topic</label>
-        <select id="forwardTopicSelect"></select>
-
-        <div style="display:flex; gap:8px; margin-top:18px; justify-content:flex-end;">
-            <button class="btn secondary" type="button" onclick="closeForwardModal()">Cancel</button>
-            <button class="btn" type="button" onclick="confirmForward()">Forward</button>
+        <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+            <button class="btn secondary" type="button" onclick="closeShareModal()">Close</button>
         </div>
     </div>
 </div>
@@ -251,7 +264,7 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = [];
+    let currentTopicMessages = []; // index -> {author, content, id, type}, used by Reply/Share/Flag
 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
@@ -426,18 +439,23 @@
                 const replyMine = r.author_id === myId;
                 const replySide = replyMine ? 'mine' : 'theirs';
                 const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
-                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
+                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true, r.reply_id, 'reply');
             }).join('');
 
-            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
+            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false, p.post_id, 'post') + repliesHtml;
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
 
         container.scrollTop = container.scrollHeight;
     }
 
-    function renderMsgGroup(side, authorName, content, time, isReply) {
+    // One bubble + its Reply/Share/Flag/timestamp row. `isReply` just adds the
+    // connecting-line modifier class — no extra wrapper div needed. Lecturers
+    // can always flag (route already restricts /posts/{id}/flag and
+    // /replies/{id}/flag to Administrator/Lecturer), so there's no gating
+    // here the way the student dashboard gates it on group-admin status.
+    function renderMsgGroup(side, authorName, content, time, isReply, id, type) {
         const msgIndex = currentTopicMessages.length;
-        currentTopicMessages.push({ author: authorName, content });
+        currentTopicMessages.push({ author: authorName, content, id, type });
 
         return `
             <div class="msg-group ${side}${isReply ? ' is-reply' : ''}">
@@ -447,7 +465,8 @@
                 </div>
                 <div class="msg-actions">
                     <a class="reply-link" onclick="focusComposerWithMention('${authorName.replace(/'/g, "\\'")}')">Reply</a>
-                    <a class="forward-link" onclick="openForwardModal(${msgIndex})">Forward</a>
+                    <a class="forward-link" onclick="openShareModal(${msgIndex})">Share</a>
+                    <a class="flag-link" data-msg-index="${msgIndex}" onclick="flagMessage(${msgIndex})">Flag</a>
                     <span class="msg-time">${time}</span>
                 </div>
             </div>
@@ -493,75 +512,119 @@
     }
     window.exportDashTopicPdf = exportDashTopicPdf;
 
-    /* ---------- Forward message modal ---------- */
-    let forwardMessageIndex = null;
+    /* ---------- Flagging ---------- */
+    async function flagMessage(index) {
+        const msg = currentTopicMessages[index];
+        if (!msg || !msg.id) return;
+        if (!window.confirm('Flag this message for moderator review?')) return;
 
-    function openForwardModal(msgIndex) {
+        const endpoint = msg.type === 'reply' ? `/replies/${msg.id}/flag` : `/posts/${msg.id}/flag`;
+        const res = await api(endpoint, { method: 'POST' });
+        if (res) {
+            const link = document.querySelector(`.flag-link[data-msg-index="${index}"]`);
+            if (link) link.outerHTML = '<span class="flagged-label">Flagged</span>';
+        } else {
+            alert('Failed to flag this message.');
+        }
+    }
+    window.flagMessage = flagMessage;
+
+    /* ---------- Share-to-social modal ---------- */
+    let shareMessageIndex = null;
+
+    function openShareModal(msgIndex) {
         const msg = currentTopicMessages[msgIndex];
         if (!msg) return;
-        forwardMessageIndex = msgIndex;
+        shareMessageIndex = msgIndex;
 
-        document.getElementById('forwardPreview').textContent = `${msg.author}: ${msg.content}`;
+        document.getElementById('sharePreview').textContent = `${msg.author}: ${msg.content}`;
+        document.getElementById('shareModalOverlay').classList.add('open');
+    }
+    window.openShareModal = openShareModal;
 
-        const groupSelect = document.getElementById('forwardGroupSelect');
-        groupSelect.innerHTML = myGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('')
-            || '<option value="">You have not created any groups</option>';
-        groupSelect.onchange = () => populateForwardTopics(groupSelect.value);
+    function closeShareModal() {
+        document.getElementById('shareModalOverlay').classList.remove('open');
+        shareMessageIndex = null;
+    }
+    window.closeShareModal = closeShareModal;
 
-        document.getElementById('forwardModalOverlay').classList.add('open');
-
-        if (myGroups.length) {
-            populateForwardTopics(myGroups[0].group_id);
-        } else {
-            document.getElementById('forwardTopicSelect').innerHTML = '';
+    async function copyTextToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            textarea.remove();
         }
     }
-    window.openForwardModal = openForwardModal;
 
-    async function populateForwardTopics(groupId) {
-        const topicSelect = document.getElementById('forwardTopicSelect');
-        if (!groupId) { topicSelect.innerHTML = ''; return; }
-        topicSelect.innerHTML = '<option>Loading…</option>';
+    async function shareToPlatform(platform) {
+        if (shareMessageIndex === null) return;
+        const msg = currentTopicMessages[shareMessageIndex];
+        if (!msg) return;
 
-        const data = await api(`/groups/${groupId}/topics`);
-        const topics = (data && (data.data || data)) || [];
-        topicSelect.innerHTML = topics.map(t => `<option value="${t.topic_id}">${t.title}</option>`).join('')
-            || '<option value="">No topics in this group</option>';
-    }
+        const text = `${msg.author}: ${msg.content}`;
+        const pageUrl = activeBrowseTopicId ? `${window.location.origin}/topics/${activeBrowseTopicId}` : window.location.origin;
+        const encodedText = encodeURIComponent(text);
+        const encodedUrl = encodeURIComponent(pageUrl);
 
-    function closeForwardModal() {
-        document.getElementById('forwardModalOverlay').classList.remove('open');
-        forwardMessageIndex = null;
-    }
-    window.closeForwardModal = closeForwardModal;
-
-    async function confirmForward() {
-        if (forwardMessageIndex === null) return;
-        const msg = currentTopicMessages[forwardMessageIndex];
-        const topicId = document.getElementById('forwardTopicSelect').value;
-        if (!msg || !topicId) return;
-
-        const forwardedContent = `Forwarded from ${msg.author}:\n${msg.content}`;
-        await api(`/topics/${topicId}/posts`, { method: 'POST', body: { content: forwardedContent, exclude_user_ids: [] } });
-
-        closeForwardModal();
-
-        if (activeBrowseTopicId && Number(topicId) === activeBrowseTopicId) {
-            loadBrowsePosts();
+        let shareLink = null;
+        switch (platform) {
+            case 'whatsapp':
+                shareLink = `https://wa.me/?text=${encodedText}%20${encodedUrl}`;
+                break;
+            case 'facebook':
+                shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
+                break;
+            case 'twitter':
+                shareLink = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+                break;
+            case 'telegram':
+                shareLink = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
+                break;
+            case 'linkedin':
+                shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+                break;
+            case 'email':
+                shareLink = `mailto:?subject=${encodeURIComponent('Shared from ' + msg.author)}&body=${encodedText}%20${encodedUrl}`;
+                break;
+            case 'instagram':
+                await copyTextToClipboard(text);
+                alert('Text copied — paste it into Instagram (DM, Story, or caption).');
+                shareLink = 'https://www.instagram.com/';
+                break;
+            case 'copy':
+                await copyTextToClipboard(`${text} ${pageUrl}`);
+                alert('Copied to clipboard.');
+                break;
         }
-    }
-    window.confirmForward = confirmForward;
 
+        if (msg.type === 'post' && msg.id) {
+            api(`/posts/${msg.id}/share`, { method: 'POST', body: { platform } }).catch(() => {});
+        }
+
+        if (shareLink) {
+            window.open(shareLink, '_blank', 'noopener');
+        }
+
+        closeShareModal();
+    }
+    window.shareToPlatform = shareToPlatform;
+
+    // Delegated: forms are re-created whenever renderGroupsBrowser() swaps
+    // views, so we listen on the always-present container instead of
+    // binding directly to elements that come and go.
     document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
         if (e.target && e.target.id === 'createGroupForm') {
             e.preventDefault();
             const nameInput = document.getElementById('groupName');
             const descInput = document.getElementById('groupDescription');
-            const response = await api('/groups', { method: 'POST', body: { name: nameInput.value, description: descInput.value } });
-            if (response && response.message && !response.group_id) {
-                alert(response.message);
-                return;
-            }
+            await api('/groups', { method: 'POST', body: { name: nameInput.value, description: descInput.value } });
             nameInput.value = '';
             descInput.value = '';
             loadGroups();
