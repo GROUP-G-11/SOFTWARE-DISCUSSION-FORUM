@@ -5,6 +5,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
@@ -18,3 +19,6 @@ Schedule::call(function () {
     $controller = app(\App\Http\Controllers\Api\ModerationController::class);
     Group::all()->each(fn (Group $group) => $controller->scanInactivity($group));
 })->daily()->name('inactivity-watchdog');
+
+
+Schedule::command('quizzes:close-expired')->everyMinute();
