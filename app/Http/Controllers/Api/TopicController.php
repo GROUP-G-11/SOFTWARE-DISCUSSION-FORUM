@@ -6,18 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Topic;
 use App\Services\TopicClassifierService;
-use Illuminate\Support\Str;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-
-
-
-
-
- // Ensure you have barryvdh/laravel-dompdf installed
-
-
-
 
 /**
  * Topic Management and Export Module (SDD 5.3).
@@ -32,44 +22,50 @@ class TopicController extends Controller
     {
     }
 
-    public function index( Request $request, Group $group)
+    /**
+     * Supports optional ?search= (title match) and ?category= filters on
+     * top of the existing pagination, so the group page can narrow down
+     * the full topic list instead of only ever showing page 1.
+     */
+    public function index(Group $group, Request $request)
     {
-        // Prudence------
-         // Topic-Focused View is scoped to a group; only members of that
-        // group (i.e. students in the same class group) may browse its topics.
-        if (! $request->user()->isMemberOf($group->group_id)) {
-            return response()->json(['message' => 'You must be a member of this group to view its topics.'], 403);
+        $query = $group->topics()->withCount('posts')->latest();
+
+        if ($request->filled('search')) {
+            $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $request->query('search'));
+            $query->where('title', 'like', '%' . $escaped . '%');
+        }
+
+        if ($request->filled('category')) {
+            $query->where('category', $request->query('category'));
         }
 
         return response()->json(
-            $group->topics()->withCount('posts')->latest()->paginate(20)
+            $query->paginate(20)->withQueryString()
         );
     }
-    public function downloadPdf(Topic $topic)
+
+    /**
+     * Distinct category list for this group, used to populate the filter
+     * dropdown. Deliberately separate from index() so the dropdown's
+     * options aren't limited to whatever happens to be on the current
+     * page/search results.
+     */
+    public function categories(Group $group)
     {
-        // Eager load data to optimize database queries
-        $topic->load(['group', 'creator', 'posts.author', 'posts.replies.author']);
+        $categories = $group->topics()
+            ->whereNotNull('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
 
-        // Load the view and inject our topic data
-        $pdf = Pdf::loadView('forum.topic_export', compact('topic'));
-
-        // Generate a clean slug-based filename based on the topic title
-        $filename = Str::slug($topic->title) . '-discussion-history.pdf';
-
-        // Return PDF file download response directly to browser
-        return $pdf->download($filename);
+        return response()->json($categories);
     }
 
     /** Launching new discussion topic thread use case (SDD Table 33). */
     public function store(Request $request, Group $group)
     {
         $request->validate(['title' => 'required|string|max:255']);
-
-        //prudence-----------
-           if (! $request->user()->isMemberOf($group->group_id)) {
-            return response()->json(['message' => 'You must be a member of this group to start a topic.'], 403);
-        }
-
 
         if ($request->user()->isBlacklistedIn($group->group_id)) {
             return response()->json(['message' => 'You are blacklisted from posting in this group.'], 403);
@@ -86,14 +82,8 @@ class TopicController extends Controller
     }
 
     /** Topic-Focused View: only chats belonging to this topic, isolated from unrelated discussion. */
-    public function show(Request $request, Topic $topic)
+    public function show(Topic $topic)
     {
-        // ----------prudence------
-          if (! $request->user()->isMemberOf($topic->group_id)) {
-            return response()->json(['message' => 'You must be a member of this topic\'s group to view it.'], 403);
-        }
-
-
         return response()->json(
             $topic->load(['creator', 'posts.author', 'posts.replies.author'])
         );

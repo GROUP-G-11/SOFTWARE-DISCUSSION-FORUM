@@ -1,3 +1,29 @@
+/vendor
+/node_modules
+.env
+/storage/*.key
+/public/storage
+/public/hot
+.phpunit.result.cache
+/storage/framework/views/*
+/storage/logs/*
+
+# ML / Python
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pkl
+*.joblib
+*.h5
+*.model
+storage/framework/sessions/*
+*.log
+ HEAD
+bootstrap/cache/*
+storage/framework/sessions/*
+
  cc2a129f004bb8e8f93894a88f20b4deb925ccdf
  /storage/*.key
 /storage/logs/*
@@ -10,6 +36,10 @@
 .env
 .env.*
 /public/build/
+public/build/assets/
+public/build/manifest.json
+/public/hot/
+ 0a618e02cb8e8cf11cd6d7ed1600504a4adb3052
 /public/build/assets/
 /public/build/manifest.json
 /public/hot/

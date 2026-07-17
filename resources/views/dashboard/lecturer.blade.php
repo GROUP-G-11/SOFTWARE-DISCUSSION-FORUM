@@ -56,6 +56,9 @@
        message itself (one modifier class) instead of an extra wrapper div. */
     .msg-group.is-reply { margin-left: 26px; max-width: calc(78% - 26px); padding-left: 14px; border-left: 2px solid var(--line); }
 
+    /* Flagged post highlight */
+    .msg-group.is-flagged .bubble { outline: 2px solid #dc2626; outline-offset: 2px; }
+
     .bubble {
         padding: 8px 12px; border-radius: 12px;
         font-size: 14px; line-height: 1.4; word-wrap: break-word;
@@ -73,6 +76,10 @@
     .msg-actions .reply-link:hover,
     .msg-actions .forward-link:hover { text-decoration: underline; }
     .msg-actions .msg-time { color: var(--slate); }
+    /* Flag action (lecturers/group admins only) */
+    .msg-actions .flag-link { color: #dc2626; cursor: pointer; }
+    .msg-actions .flag-link:hover { text-decoration: underline; }
+    .msg-actions .flag-link.flagged { font-weight: 700; }
 
     .composer {
         display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
@@ -305,7 +312,8 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = []; // index -> {author, content}, used by the Forward modal
+    let currentTopicMessages = []; // index -> {author, content, postId, isReply, flagged}, used by Forward + Flag
+    
     /**********adddedd**************** */
     let groupMembersExpanded = false;
     let allGroupMembers = []; // cache so "show more" doesn't need another API call
@@ -318,6 +326,24 @@
         if (!dt) return '';
         return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
+
+    // MODIFIED: A lecturer may flag posts/replies in ANY group they belong
+    // to — owner, active admin, or plain member. This used to be gated on
+    // g.can_view_group_statistics (owner/admin only); flagging is a
+    // moderation action every lecturer in the group should have, so the
+    // check is now simply "is this a group I'm in at all".
+    //
+    // IMPORTANT: this is a client-side UI guard only. The real authorization
+    // must still live server-side on the /posts/{id}/flag and
+    // /replies/{id}/flag endpoints — verify there that the requesting user
+    // has a lecturer membership row for the group that owns the post/reply,
+    // otherwise a lecturer could flag posts in groups they don't belong to
+    // at all via a direct API call.
+    function canFlagInGroup(groupId) {
+        const g = myGroups.find(x => x.group_id === groupId);
+        return !!g;
+    }
+    window.canFlagInGroup = canFlagInGroup;
 
     /* ---------- Live WebSockets Subscription (Laravel Echo) ---------- */
     window.currentSubscriptionId = null;
@@ -374,7 +400,7 @@
                 const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : 'User';
                 const timeStr = timeOnly(e.reply.posted_at || e.reply.created_at);
 
-                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false);
+                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged);
 
                 container.insertAdjacentHTML('beforeend', newPostHtml);
                 container.scrollTop = container.scrollHeight;
@@ -612,6 +638,12 @@ function groupMembersModalHtml() {
         `;
     }
 
+    function openGroupTopics(groupId, groupName) {
+        const g = myGroups.find(x => x.group_id === groupId);
+        if (g && (g.is_banned || g.banned)) {
+            alert("You are blacklisted and banned from accessing this group.");
+            return;
+        }
     function openCreateTopicModal() {
     const modal = document.getElementById('createTopicModal');
     if (modal) modal.style.display = 'flex';
@@ -786,6 +818,15 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
         if (!listEl) return;
 
         const data = await api(`/groups/${activeBrowseGroupId}/topics`);
+        
+        // Block access dynamically if API returns ban restrictions
+        if (data && (data.error || data.message) && (data.error?.toLowerCase().includes('ban') || data.message?.toLowerCase().includes('ban') || data.error?.toLowerCase().includes('blacklist') || data.message?.toLowerCase().includes('blacklist'))) {
+            listEl.innerHTML = `<div class="empty-state" style="color: #dc2626; font-weight: bold;">${data.error || data.message}</div>`;
+            const form = document.getElementById('newTopicFormInline');
+            if (form) form.style.display = 'none';
+            return;
+        }
+
         const topics = (data && (data.data || data)) || [];
 
         listEl.innerHTML = topics.map(t => `
@@ -802,13 +843,27 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
         if (!container) return;
 
         const t = await api(`/topics/${activeBrowseTopicId}`);
+        if (!t || t.message || t.error) {
+            const errorMsg = (t && (t.error || t.message)) || 'This topic could not be loaded.';
+            container.innerHTML = `<div class="muted" style="color: #dc2626; font-weight: bold;">${errorMsg}</div>`;
+            const composer = document.getElementById('dashComposerForm');
+            if (composer) composer.style.display = 'none';
+            return;
+        }
+
+        // Ensure composer form visibility if accessible
+        if (composer) composer.style.display = 'flex';
+
+        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
+        const posts = t.posts || [];
+
+        // Reset the lookup table that Forward/Flag use to find a message's
+        // full content + id by index, without stuffing raw/quoted text into
+        // onclick attrs.
         if (!t || t.message) {
             container.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
             return;
         }
-
-        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
-        const posts = t.posts || [];
 
         currentTopicMessages = [];
 
@@ -821,21 +876,36 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
                 const replyMine = r.author_id === myId;
                 const replySide = replyMine ? 'mine' : 'theirs';
                 const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
-                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
+                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true, r.reply_id ?? r.post_id, r.is_flagged);
             }).join('');
 
-            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
+            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false, p.post_id, p.is_flagged) + repliesHtml;
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
 
         container.scrollTop = container.scrollHeight;
     }
 
-    function renderMsgGroup(side, authorName, content, time, isReply) {
+    // One bubble + its Reply/Forward/Flag/timestamp row. `isReply` both adds
+    // the connecting-line modifier class and tells flagPost() which endpoint
+    // to call. `postId` is the post/reply's database id (used by Forward's
+    // share endpoint and by Flag); `flagged` reflects its current moderation
+    // state as returned by the API.
+    function renderMsgGroup(side, authorName, content, time, isReply, postId, flagged) {
         const msgIndex = currentTopicMessages.length;
-        currentTopicMessages.push({ author: authorName, content });
+        currentTopicMessages.push({ author: authorName, content, postId, isReply: !!isReply, flagged: !!flagged });
+
+        // MODIFIED: Flag is now offered to any lecturer who belongs to the
+        // group the active topic is in (see canFlagInGroup above) — not
+        // just the owner/active group admin. The server-side authorization
+        // on the /posts/{id}/flag and /replies/{id}/flag endpoints must be
+        // updated to match (group membership, not owner/admin-only).
+        const canFlag = canFlagInGroup(activeBrowseGroupId);
+        const flagHtml = canFlag
+            ? `<a class="flag-link${flagged ? ' flagged' : ''}" onclick="flagPost(${msgIndex})">${flagged ? 'Flagged' : 'Flag'}</a>`
+            : '';
 
         return `
-            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}">
+            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}${flagged ? ' is-flagged' : ''}" id="${postId ? 'post-' + postId : ''}">
                 <div class="bubble">
                     <span class="bubble-author">${authorName}</span>
                     <p class="bubble-text">${content}</p>
@@ -843,12 +913,304 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
                 <div class="msg-actions">
                     <a class="reply-link" onclick="focusComposerWithMention('${authorName.replace(/'/g, "\\'")}')">Reply</a>
                     <a class="forward-link" onclick="openForwardModal(${msgIndex})">Forward</a>
+                    ${flagHtml}
                     <span class="msg-time">${time}</span>
                 </div>
             </div>
         `;
     }
 
+    // Toggles a post's or reply's flagged state, calling whichever endpoint
+    // matches the message type. MODIFIED: now rendered/callable for any
+    // lecturer who is a member of the group the active topic belongs to
+    // (see canFlagInGroup above).
+    async function flagPost(msgIndex) {
+        const msg = currentTopicMessages[msgIndex];
+        if (!msg || !msg.postId) return;
+        if (!canFlagInGroup(activeBrowseGroupId)) return; // client-side guard only; server must enforce this too
+
+        const ok = window.confirm(msg.flagged ? 'Remove flag from this message?' : 'Flag this message for review?');
+        if (!ok) return;
+
+        const endpoint = msg.isReply ? `/replies/${msg.postId}/flag` : `/posts/${msg.postId}/flag`;
+        const response = await api(endpoint, {
+            method: 'POST',
+            body: { flagged: !msg.flagged }
+        });
+
+        if (response && response.error) {
+            alert(response.error);
+            return;
+        }
+
+        // Notify if flagging triggered a blacklist and ban
+        if (response && response.message) {
+            alert(response.message);
+        }
+
+        msg.flagged = !msg.flagged;
+
+        // Update the flag link and bubble highlight in place instead of
+        // re-rendering the whole thread.
+        const postEl = document.getElementById(`post-${msg.postId}`);
+        if (postEl) {
+            postEl.classList.toggle('is-flagged', msg.flagged);
+            const flagLink = postEl.querySelector('.flag-link');
+            if (flagLink) {
+                flagLink.textContent = msg.flagged ? 'Flagged' : 'Flag';
+                flagLink.classList.toggle('flagged', msg.flagged);
+            }
+        }
+    }
+    window.flagPost = flagPost;
+
+    /* ---------- Post exclusion checklist ---------- */
+    async function loadGroupMembersForExclusion() {
+        const listEl = document.getElementById('dashExclusionList');
+        if (!listEl || !activeBrowseGroupId) return;
+
+        const data = await api(`/groups/${activeBrowseGroupId}/members`);
+        const members = (data && (data.data || data)) || [];
+        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
+
+        listEl.innerHTML = members
+            .filter(m => m.user_id !== myId)
+            .map(m => `
+                <label>
+                    <input type="checkbox" value="${m.user_id}">
+                    ${m.full_name || m.name}
+                </label>
+            `).join('') || '<div class="muted" style="font-size:13px;">No other members in this group.</div>';
+    }
+    window.loadGroupMembersForExclusion = loadGroupMembersForExclusion;
+
+    function focusComposerWithMention(authorName) {
+        const textarea = document.getElementById('dashComposerInput');
+        if (!textarea) return;
+        if (!textarea.value.trim()) {
+            textarea.value = `@${authorName} `;
+            textarea.style.height = 'auto';
+            textarea.style.height = (textarea.scrollHeight) + 'px';
+        }
+        textarea.focus();
+    }
+    window.focusComposerWithMention = focusComposerWithMention;
+
+    async function exportDashTopicPdf() {
+        if (!activeBrowseTopicId) return;
+        try {
+            const token = localStorage.getItem('sdf_token');
+            const headers = { 'Accept': 'application/pdf' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(window.location.origin + `/api/topics/${activeBrowseTopicId}/export`, { method: 'GET', headers });
+            if (!response.ok) throw new Error(`Server returned status ${response.status}`);
+
+            const pdfBlob = await response.blob();
+            if (pdfBlob.size === 0) throw new Error('The server generated an empty file.');
+
+            const blobUrl = window.URL.createObjectURL(pdfBlob);
+            const link = document.createElement('a');
+            link.style.display = 'none';
+            link.href = blobUrl;
+            link.download = `topic-${activeBrowseTopicId}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            setTimeout(() => { link.remove(); window.URL.revokeObjectURL(blobUrl); }, 150);
+        } catch (err) {
+            alert(`Failed to export PDF: ${err.message}`);
+        }
+    }
+    window.exportDashTopicPdf = exportDashTopicPdf;
+
+    /* ---------- Forward & Social Share Modal Controls ---------- */
+    let forwardMessageIndex = null;
+    let forwardMode = 'internal'; // 'internal' | 'external'
+
+    function openForwardModal(msgIndex) {
+        const msg = currentTopicMessages[msgIndex];
+        if (!msg) return;
+        forwardMessageIndex = msgIndex;
+
+        document.getElementById('forwardPreview').textContent = `${msg.author}: ${msg.content}`;
+
+        setForwardMode('internal');
+
+        const groupSelect = document.getElementById('forwardGroupSelect');
+        groupSelect.innerHTML = myGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('')
+            || '<option value="">You have not joined any groups</option>';
+        groupSelect.onchange = () => populateForwardTopics(groupSelect.value);
+
+        document.getElementById('forwardModalOverlay').classList.add('open');
+
+        if (myGroups.length) {
+            populateForwardTopics(myGroups[0].group_id);
+        } else {
+            document.getElementById('forwardTopicSelect').innerHTML = '';
+        }
+    }
+    window.openForwardModal = openForwardModal;
+
+    function setForwardMode(mode) {
+        forwardMode = mode;
+        const badge = document.getElementById('modalModeBadge');
+        const tabInternal = document.getElementById('tabInternal');
+        const tabExternal = document.getElementById('tabExternal');
+        const internalFields = document.getElementById('internalForwardFields');
+        const externalFields = document.getElementById('externalForwardFields');
+
+        if (mode === 'external') {
+            badge.textContent = 'External';
+            badge.style.background = '#10b981';
+            tabExternal.className = 'btn';
+            tabExternal.style.background = '#fff';
+            tabExternal.style.color = '#000';
+            tabInternal.className = 'btn secondary';
+            tabInternal.style.background = '';
+            tabInternal.style.color = '';
+            internalFields.style.display = 'none';
+            externalFields.style.display = 'block';
+        } else {
+            badge.textContent = 'Internal';
+            badge.style.background = 'var(--accent)';
+            tabInternal.className = 'btn';
+            tabInternal.style.background = '#fff';
+            tabInternal.style.color = '#000';
+            tabExternal.className = 'btn secondary';
+            tabExternal.style.background = '';
+            tabExternal.style.color = '';
+            internalFields.style.display = 'block';
+            externalFields.style.display = 'none';
+        }
+    }
+    window.setForwardMode = setForwardMode;
+
+    async function populateForwardTopics(groupId) {
+        const topicSelect = document.getElementById('forwardTopicSelect');
+        if (!groupId) { topicSelect.innerHTML = ''; return; }
+        topicSelect.innerHTML = '<option>Loading…</option>';
+
+        const data = await api(`/groups/${groupId}/topics`);
+        const topics = (data && (data.data || data)) || [];
+        topicSelect.innerHTML = topics.map(t => `<option value="${t.topic_id}">${t.title}</option>`).join('')
+            || '<option value="">No topics in this group</option>';
+    }
+
+    function closeForwardModal() {
+        document.getElementById('forwardModalOverlay').classList.remove('open');
+        forwardMessageIndex = null;
+    }
+    window.closeForwardModal = closeForwardModal;
+
+    async function shareToPlatform(platform) {
+        if (forwardMessageIndex === null) return;
+        const msg = currentTopicMessages[forwardMessageIndex];
+
+        const postId = msg.postId || activeBrowseTopicId;
+
+        try {
+            const response = await api(`/posts/${postId}/share`, {
+                method: 'POST',
+                body: { platform: platform }
+            });
+
+            if (response && response.error) {
+                alert(response.error);
+                return;
+            }
+
+            const shareUrl = response.url;
+            const textToShare = `Check out this post on the Student Discussion Forum:\n"${msg.content.substring(0, 100)}..."\nRead more here: ${shareUrl}`;
+
+            let targetUrl = '';
+            switch(platform) {
+                case 'WhatsApp':
+                    targetUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textToShare)}`;
+                    window.open(targetUrl, '_blank');
+                    break;
+                case 'Twitter':
+                    targetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(textToShare)}`;
+                    window.open(targetUrl, '_blank');
+                    break;
+                case 'Facebook':
+                    targetUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                    window.open(targetUrl, '_blank');
+                    break;
+                case 'LinkedIn':
+                    targetUrl = `https://www.linkedin.com/sharing/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('Forum Discussion')}&summary=${encodeURIComponent(textToShare)}`;
+                    window.open(targetUrl, '_blank');
+                    break;
+                case 'Clipboard':
+                default:
+                    await navigator.clipboard.writeText(textToShare);
+                    alert("Reference link & message copied to clipboard!");
+                    break;
+            }
+            closeForwardModal();
+        } catch (err) {
+            alert(`Sharing action failed: ${err.message}`);
+        }
+    }
+    window.shareToPlatform = shareToPlatform;
+
+    async function confirmForward() {
+        if (forwardMessageIndex === null) return;
+        const msg = currentTopicMessages[forwardMessageIndex];
+        const topicId = document.getElementById('forwardTopicSelect').value;
+        if (!msg || !topicId) return;
+
+        const forwardedContent = `Forwarded from ${msg.author}:\n${msg.content}`;
+        await api(`/topics/${topicId}/posts`, { method: 'POST', body: { content: forwardedContent, exclude_user_ids: [] } });
+
+        closeForwardModal();
+
+        if (activeBrowseTopicId && Number(topicId) === activeBrowseTopicId) {
+            loadBrowsePosts();
+        }
+    }
+    window.confirmForward = confirmForward;
+
+    // Delegated: the topic form and composer form are re-created whenever
+    // renderGroupsBrowser() swaps views, so we listen on the always-present
+    // container instead of binding directly to elements that come and go.
+    document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
+        if (e.target && e.target.id === 'createGroupForm') {
+            e.preventDefault();
+            const nameInput = document.getElementById('groupName');
+            const descInput = document.getElementById('groupDescription');
+            await api('/groups', {
+                method: 'POST',
+                body: { name: nameInput.value, description: descInput.value },
+            });
+            nameInput.value = '';
+            descInput.value = '';
+            loadGroups();
+        } else if (e.target && e.target.id === 'newTopicFormInline') {
+            e.preventDefault();
+            if (!activeBrowseGroupId) return;
+            const input = document.getElementById('newTopicTitleInline');
+            await api(`/groups/${activeBrowseGroupId}/topics`, { method: 'POST', body: { title: input.value } });
+            input.value = '';
+            loadBrowseTopics();
+        } else if (e.target && e.target.id === 'dashComposerForm') {
+            e.preventDefault();
+            if (!activeBrowseTopicId) return;
+            const textarea = document.getElementById('dashComposerInput');
+            const excludeIds = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'))
+                .map(cb => Number(cb.value));
+            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: excludeIds } });
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            loadBrowsePosts();
+        }
+    });
+
+    const toggleBtn = document.getElementById('toggleQuizFormBtn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            const form = document.getElementById('quizConfigForm');
+            form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+        });
     /* ---------- Post exclusion checklist ---------- */
     async function loadGroupMembersForExclusion() {
         const listEl = document.getElementById('dashExclusionList');

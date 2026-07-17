@@ -3,135 +3,22 @@
 @section('title', 'Topic')
 
 @section('content')
-<style>
-    /*----for chat-------*/
-    .topic-header {
-        display: flex; align-items: center; justify-content: space-between; gap: 12px;
-        flex-wrap: wrap; padding-bottom: 12px; border-bottom: 1px solid var(--line); margin-bottom: 14px;
-    }
-
-    /* ---------- Chat thread (WhatsApp-style) ---------- */
-    .chat-thread {
-        display: flex; flex-direction: column; gap: 4px;
-        background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
-        padding: 16px; min-height: 200px; max-height: 65vh; overflow-y: auto;
-    }
-    .msg-group { display: flex; flex-direction: column; margin: 8px 0; max-width: 78%; }
-    .msg-group.mine { align-self: flex-end; align-items: flex-end; }
-    .msg-group.theirs { align-self: flex-start; align-items: flex-start; }
-
-    .bubble {
-        position: relative; padding: 8px 12px 6px; border-radius: 12px;
-        font-size: 14px; line-height: 1.4; word-wrap: break-word;
-    }
-    .msg-group.mine .bubble { background: #d9fdd3; border-bottom-right-radius: 3px; }
-    .msg-group.theirs .bubble { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 3px; }
-    .bubble.is-flagged { outline: 2px solid var(--warn); }
-
-    .bubble-author { font-size: 12px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
-    .msg-group.mine .bubble-author { display: none; }
-    .bubble-content { white-space: pre-wrap; }
-    .bubble-meta { font-size: 10.5px; color: var(--slate); margin-top: 3px; text-align: right; }
-    .bubble-flag-tag { color: var(--warn); font-weight: 600; }
-
-    .bubble-actions {
-        display: flex; gap: 2px; margin-top: 3px; opacity: 0; transition: opacity .12s;
-    }
-    .msg-group:hover .bubble-actions, .bubble-actions.force-visible { opacity: 1; }
-    .msg-group.mine .bubble-actions { justify-content: flex-end; }
-
-    .icon-btn {
-        display: inline-flex; align-items: center; justify-content: center;
-        background: transparent; border: none; color: var(--slate);
-        border-radius: 50%; width: 26px; height: 26px; cursor: pointer; padding: 0;
-    }
-    .icon-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
-    .icon-btn:hover { background: rgba(0,0,0,.06); color: var(--accent); }
-    .icon-btn.flag-btn:hover { color: var(--warn); }
-    .icon-btn.is-flagged { color: var(--warn); }
-
-    .share-wrap { position: relative; display: inline-block; }
-    .share-menu {
-        display: none; position: absolute; bottom: calc(100% + 4px); z-index: 20;
-        background: #fff; border: 1px solid var(--line); border-radius: var(--radius);
-        box-shadow: 0 6px 18px rgba(28,43,51,.15); padding: 6px; min-width: 190px;
-    }
-    .msg-group.theirs .share-menu { left: 0; }
-    .msg-group.mine .share-menu { right: 0; }
-    .share-menu.open { display: block; }
-    .share-menu button {
-        display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
-        background: none; border: none; padding: 8px 10px; border-radius: 4px; cursor: pointer;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: var(--ink);
-    }
-    .share-menu button:hover { background: var(--paper); }
-    .share-menu svg { width: 16px; height: 16px; flex-shrink: 0; }
-
-    /* Replies rendered as their own chat rows, indented slightly to show they belong to the post above */
-    .reply-row { margin-left: 22px; margin-top: 2px; }
-    .reply-row .bubble { font-size: 13.5px; }
-
-    /* ---------- Composer (bottom bar, WhatsApp-style) ---------- */
-    .composer {
-        display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
-        background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 8px 8px 8px 16px;
-    }
-    .composer textarea {
-        flex: 1; border: none; resize: none; outline: none; font-size: 14px; padding: 6px 0;
-        max-height: 120px; font-family: inherit;
-    }
-    .composer-send {
-        background: var(--accent); color: #fff; border: none; border-radius: 50%;
-        width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
-    }
-    .composer-send svg { width: 18px; height: 18px; }
-    .composer-extra { font-size: 12px; color: var(--slate); margin-top: 6px; }
-    .composer-extra input { font-size: 12px; }
-
-    .reply-composer { display: flex; align-items: center; gap: 6px; margin: 6px 0 4px 22px; }
-    .reply-composer input {
-        flex: 1; border: 1px solid var(--line); border-radius: 16px; padding: 6px 12px; font-size: 13px; outline: none;
-    }
-    .reply-composer button {
-        background: var(--accent); color: #fff; border: none; border-radius: 50%;
-        width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
-    }
-    .reply-composer button svg { width: 14px; height: 14px; }
-</style>
-
 <div class="eyebrow" id="topicCategory">Topic</div>
-<h1 id="topicTitle">Loading Topic...</h1>
-<button class="btn secondary" onclick="downloadPDF()">Export to PDF</button>
+<h1 id="topicTitle">Loading…</h1>
+<a class="btn secondary" id="exportLink" href="#" target="_blank">Export to PDF</a>
 
 <div class="card">
     <h3>Write a post</h3>
-    <form id="postFormCard">
-        <textarea id="postContentCard" rows="3" placeholder="Share your thoughts…" required></textarea>
-
-        <label for="excludeGroup" class="muted" style="display:block; margin-top:8px;">Exclude members of group (optional)</label>
-        <select id="excludeGroup" style="margin-bottom:6px;">
-            <option value="">— Select a group —</option>
-        </select>
-
-        <label for="excludeUsers" class="muted" style="display:block;">Exclude specific users (optional)</label>
-        <select id="excludeUsers" multiple style="min-height:100px; margin-bottom:10px;">
-            <option disabled>Select a group above to load its members…</option>
-        </select>
-
+    <form id="postForm">
+        <textarea id="postContent" rows="3" placeholder="Share your thoughts…" required></textarea>
+        <input type="text" id="excludeIds" placeholder="Exclude user IDs (comma-separated, optional)">
         <button class="btn" type="submit">Post</button>
     </form>
 </div>
 
-<div class="chat-thread" id="posts"></div>
+<div id="posts"></div>
 
-<form class="composer" id="postFormComposer">
-    <textarea id="postContentComposer" rows="1" placeholder="Type a message…" required
-        oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"></textarea>
-    <button class="composer-send" type="submit" title="Send">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-    </button>
-</form>
-
+<!-- Profile popup modal -->
 <div id="profileModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:999; align-items:center; justify-content:center;">
     <div class="card" style="max-width:360px; width:90%; text-align:center;">
         <img id="modalAvatar" src="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;display:none;margin:0 auto 12px;border:1px solid var(--line);">
@@ -148,6 +35,7 @@
 @section('scripts')
 @vite(['resources/js/app.js'])
 <script>
+const topicId = {{ $topic }};
     if (window.Pusher) {
     window.Pusher = Pusher;
 }
@@ -222,7 +110,6 @@ async function loadTopic() {
 
     const t = await executeApiCall(`/topics/${topicId}`);
 
-    // ...your existing code...
     const titleEl = document.getElementById('topicTitle');
     const categoryEl = document.getElementById('topicCategory');
     const postsContainer = document.getElementById('posts');
@@ -485,83 +372,67 @@ function actionsHtml(kind, id, isFlagged, canFlag) {
 
 function authorLink(author) {
     if (!author) return 'Unknown';
-    const name = author.full_name || author.name || "Unknown User";
-    return `<span class="author-link" style="cursor:pointer; text-decoration:underline;" onclick="viewProfile(${author.user_id})">${name}</span>`;
+    return `<span class="author-link" style="cursor:pointer; text-decoration:underline;" onclick="viewProfile(${author.user_id})">${author.full_name}</span>`;
 }
 
 function renderPosts(posts) {
-    const container = document.getElementById('posts');
-    if(!container) return;
-    
-    const canFlag = currentUserRole === 'Administrator' || currentUserRole === 'Lecturer';
-
-    container.innerHTML = posts.map(p => {
-        const mine = p.author_id === currentUserId;
-        const side = mine ? 'mine' : 'theirs';
-        const authorName = p.author ? (p.author.full_name || p.author.name) : "User";
-
-        const repliesHtml = (p.replies || []).map(r => {
-            const replyMine = r.author_id === currentUserId;
-            const replySide = replyMine ? 'mine' : 'theirs';
-            const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : "User";
-            return `
-                <div class="msg-group ${replySide} reply-row" id="reply-${r.reply_id}">
-                    <div class="bubble ${r.is_flagged ? 'is-flagged' : ''}">
-                        <div class="bubble-author">${replyAuthorName}</div>
-                        <div class="bubble-content">${r.content}</div>
-                        <div class="bubble-meta">${r.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}${timeOnly(r.replied_at || r.created_at)}</div>
+    document.getElementById('posts').innerHTML = posts.map(p => `
+        <div class="card">
+            <strong>${authorLink(p.author)}</strong>
+            <span class="muted">${new Date(p.posted_at).toLocaleString()}</span>
+            ${p.is_flagged ? '<span class="flag"> · flagged</span>' : ''}
+            <p>${p.content}</p>
+            <button class="btn secondary" onclick="shareToSocial(${p.post_id})">Forward</button>
+            <button class="btn secondary" onclick="flagPost(${p.post_id})">Flag</button>
+            <div style="margin-top:10px; padding-left:16px; border-left: 2px solid #d8d2c4;">
+                ${(p.replies || []).map(r => `
+                    <div style="margin-bottom:8px;">
+                        <strong>${authorLink(r.author)}</strong>
+                        <span class="muted">${new Date(r.replied_at).toLocaleString()}</span>
+                        <div>${r.content}</div>
                     </div>
-                    ${actionsHtml('reply', r.reply_id, r.is_flagged, canFlag)}
-                </div>
-            `;
-        }).join('');
-
-        return `
-            <div class="msg-group ${side}" id="post-${p.post_id}">
-                <div class="bubble ${p.is_flagged ? 'is-flagged' : ''}">
-                    <div class="bubble-author">${authorName}</div>
-                    <div class="bubble-content">${p.content}</div>
-                    <div class="bubble-meta">${p.is_flagged ? '<span class="bubble-flag-tag">flagged · </span>' : ''}${timeOnly(p.posted_at || p.created_at)}</div>
-                </div>
-                ${actionsHtml('post', p.post_id, p.is_flagged, canFlag)}
+                `).join('')}
+                <form onsubmit="return submitReply(event, ${p.post_id})">
+                    <input type="text" placeholder="Reply…" required>
+                    <button class="btn secondary" type="submit">Reply</button>
+                </form>
             </div>
-
-            ${repliesHtml}
-
-            <div class="reply-composer">
-                <input type="text" id="reply-input-${p.post_id}" placeholder="Reply…"
-                    onkeydown="if(event.key==='Enter'){ submitReply(${p.post_id}); }">
-                <button type="button" title="Send reply" onclick="submitReply(${p.post_id})">${ICONS.send}</button>
-            </div>
-        `;
-    }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
+        </div>
+    `).join('') || '<div class="muted">No posts yet in this topic.</div>';
 }
 
-async function submitReply(postId) {
-    const input = document.getElementById(`reply-input-${postId}`);
-    if (!input || !input.value.trim()) return;
-    const res = await executeApiCall(`/posts/${postId}/replies`, { method: 'POST', body: { content: input.value } });
-    if (res && res.message && !res.reply_id && !res.author) {
-        alert(res.message);
-    }
-    input.value = '';
+async function submitReply(e, postId) {
+    e.preventDefault();
+    const input = e.target.querySelector('input');
+    await api(`/posts/${postId}/replies`, { method: 'POST', body: { content: input.value } });
+    loadTopic();
+    return false;
+}
+
+async function shareToSocial(postId) {
+    await api(`/posts/${postId}/share`, { method: 'POST', body: { platform: 'Clipboard' } });
+    alert('Link copied and share logged.');
+}
+
+async function flagPost(postId) {
+    await api(`/posts/${postId}/flag`, { method: 'POST' });
     loadTopic();
 }
 
-function toggleShareMenu(key) {
-    document.querySelectorAll('.share-menu.open').forEach(m => {
-        if (m.id !== `share-menu-${key}`) m.classList.remove('open');
-    });
-    const targetMenu = document.getElementById(`share-menu-${key}`);
-    if(targetMenu) targetMenu.classList.toggle('open');
-}
+document.getElementById('postForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const excludeRaw = document.getElementById('excludeIds').value.trim();
+    const exclude_user_ids = excludeRaw ? excludeRaw.split(',').map(s => parseInt(s.trim())) : [];
 
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('.share-wrap')) {
-        document.querySelectorAll('.share-menu.open').forEach(m => m.classList.remove('open'));
-    }
+    await api(`/topics/${topicId}/posts`, {
+        method: 'POST',
+        body: { content: document.getElementById('postContent').value, exclude_user_ids },
+    });
+    e.target.reset();
+    loadTopic();
 });
 
+/* ---------------- Profile popup ---------------- */
 async function shareToSocial(postId, platform) {
     const res = await executeApiCall(`/posts/${postId}/share`, { method: 'POST', body: { platform } });
     document.querySelectorAll('.share-menu.open').forEach(m => m.classList.remove('open'));
@@ -654,11 +525,11 @@ if(composerForm) {
     });
 }
 async function viewProfile(userId) {
-    const profile = await executeApiCall(`/users/${userId}/profile`);
+    const profile = await api(`/users/${userId}/profile`);
     if (!profile) return;
 
-    document.getElementById('modalName').textContent = profile.full_name || profile.name;
-    document.getElementById('modalRole').textContent = profile.role || '';
+    document.getElementById('modalName').textContent = profile.full_name;
+    document.getElementById('modalRole').textContent = profile.role;
     document.getElementById('modalBio').textContent = profile.bio || 'No bio provided.';
 
     const phoneEl = document.getElementById('modalPhone');
@@ -678,7 +549,7 @@ async function viewProfile(userId) {
     } else {
         img.style.display = 'none';
         fallback.style.display = 'flex';
-        fallback.textContent = (profile.full_name || profile.name || '?').substring(0, 2).toUpperCase();
+        fallback.textContent = (profile.full_name || '?').substring(0, 2).toUpperCase();
     }
 
     document.getElementById('profileModal').style.display = 'flex';

@@ -55,6 +55,9 @@
        message itself (one modifier class) instead of an extra wrapper div. */
     .msg-group.is-reply { margin-left: 26px; max-width: calc(78% - 26px); padding-left: 14px; border-left: 2px solid var(--line); }
 
+    /* Flagged post highlight */
+    .msg-group.is-flagged .bubble { outline: 2px solid #dc2626; outline-offset: 2px; }
+ 
     .bubble {
         padding: 8px 12px; border-radius: 12px;
         font-size: 14px; line-height: 1.4; word-wrap: break-word;
@@ -72,6 +75,11 @@
     .msg-actions .reply-link:hover,
     .msg-actions .forward-link:hover { text-decoration: underline; }
     .msg-actions .msg-time { color: var(--slate); }
+    /* Flag action (group admins only) */
+    .msg-actions .flag-link { color: #dc2626; cursor: pointer; }
+    .msg-actions .flag-link:hover { text-decoration: underline; }
+    .msg-actions .flag-link.flagged { font-weight: 700; }
+ 
 
     .composer {
         display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
@@ -87,6 +95,11 @@
     }
     .composer-send svg { width: 18px; height: 18px; }
 
+    /* Inline "View statistics" shortcut shown to group admins in the topics/posts drill-down */
+    .stats-shortcut {
+        padding: 5px 12px; font-size: 12.5px;
+    }
+ 
     /* ---------- Forward message modal ---------- */
     .modal-overlay {
         position: fixed; inset: 0; background: rgba(15, 23, 20, 0.45);
@@ -117,7 +130,7 @@
              actually decides whether the sidebar item/panel exist (not just CSS). -->
         <div class="dash-panel" id="panel-group-admin">
             <div class="section-title"><h2 style="margin:0;">Group Admin</h2></div>
-            <p class="muted">Groups you administer. As a group admin you can view full group statistics, the same view a lecturer sees for their own groups.</p>
+            <p class="muted">Groups you administer. As a group admin you can view full group statistics, the same view a lecturer sees for their own groups, and flag posts for review.</p>
             <div id="groupAdminList"></div>
         </div>
 
@@ -240,7 +253,8 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = []; // index -> {author, content}, used by the Forward modal
+    let currentTopicMessages = []; // index -> {author, content, postId, flagged}, used by Forward + Flag
+    
     //// added------------------
     let groupMembersExpanded = false;
     let allGroupMembers = []; // cache so "show more" doesn't need another API call
@@ -254,6 +268,16 @@
         if (!dt) return '';
         return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
+
+    // Group-admin check: is the current user the admin of the given group?
+    // Used to gate both the inline "View statistics" shortcut and the
+    // "Flag" action on posts/replies within that group's topics.
+    function isGroupAdmin(groupId) {
+        if (!groupId || !window.CURRENT_USER) return false;
+        const g = myGroups.find(x => x.group_id === groupId);
+        return !!(g && g.admin_id === window.CURRENT_USER.user_id);
+    }
+    window.isGroupAdmin = isGroupAdmin;
 
     /* ---------- Live WebSockets Subscription (Laravel Echo) ---------- */
     window.currentSubscriptionId = null;
@@ -319,7 +343,7 @@
                 const timeStr = timeOnly(e.reply.posted_at || e.reply.created_at);
 
                 // Build the post HTML markup matching your structure exactly
-                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false);
+                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged);
 
                 // Append the live message to the chat view container
                 container.insertAdjacentHTML('beforeend', newPostHtml);
@@ -328,8 +352,20 @@
             .error((error) => {
                 console.error("Presence channel subscription error:", error);
             });
-    };
-
+            
+    };//////////////added
+    document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM loaded. Checking for Laravel Echo...");
+    
+    // Check if we already have a default topic to subscribe to on load
+    // (For example, if your application has a default activeBrowseTopicId variable)
+    if (typeof activeBrowseTopicId !== 'undefined' && activeBrowseTopicId) {
+        window.subscribeToTopic(activeBrowseTopicId);
+    } else {
+        console.log("No active topic selected yet. Waiting for user interaction.");
+    }
+});
+ 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
     }
@@ -360,17 +396,25 @@
     
     ///////////replaced-------------------
     function groupsViewHtml() {
-    const rows = myGroups.map(g => {
-        const joined = g.is_member || g.is_group_admin;
-        return `
-            <div class="group-item" data-group-id="${g.group_id}"
+        const rows = myGroups.map(g => {
+            const joined = g.is_member || g.is_group_admin;
+            const isBanned = g.is_banned || g.banned;
+            return `
+                <div class="group-item" data-group-id="${g.group_id}" onclick="${isBanned ? `alert('You are blacklisted/banned from this group.')` : `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`}">
                 onclick="${joined ? `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')` : `showNotMemberNotice(${g.group_id})`}">
-                <div class="group-info">
-                    <strong>${g.name}</strong>
-                    <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                    <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
+                    <div class="group-info">
+                        <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
+                        <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                        <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
                         You're not a member of this group yet — join to view topics.
                     </div>
+                    ${isBanned 
+                        ? '<span class="badge" style="background:#dc2626; color:#fff;">Banned</span>'
+                        : (joined
+                            ? '<span class="badge role-student">Joined</span>'
+                            : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
+                        )
+                    }
                 </div>
                 ${joined
                     ? '<span class="badge role-student">Joined</span>'
@@ -460,8 +504,17 @@ function closeCreateGroupModalOnOuterClick(event) {
     // ---- Topics view now includes search box + category filter + load-more,
     // borrowed from the standalone group-topics page (index.blade.php). ----
     function topicsViewHtml() {
-        //////////removed back to groups---------------------
-    return `
+        // Group admins get a quick shortcut straight to their group statistics
+        // page without having to leave the drill-down view (the full stats
+        // link still also lives in the "Group Admin" sidebar panel).
+        const statsShortcut = isGroupAdmin(activeBrowseGroupId)
+            ? `<a class="btn secondary stats-shortcut" style="float:right;" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
+            : '';
+            /* removed back to groups and added create topic, searching , filtering */
+        return `
+            ${statsShortcut}
+            <h3 style="margin: 12px 0 2px;">${activeBrowseGroupName}</h3>
+            <p class="muted" style="margin: 0 0 14px;">Topics in this group</p>
         
         <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
             <div>
@@ -501,13 +554,19 @@ function closeCreateGroupModalOnOuterClick(event) {
 }
  
     function postsViewHtml() {
+        const statsShortcut = isGroupAdmin(activeBrowseGroupId)
+            ? `<a class="btn secondary stats-shortcut" href="/groups/${activeBrowseGroupId}/statistics">Statistics</a>`
+            : '';
         return `
             <a class="back-link" onclick="browseGoBack()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                 Back to topics
             </a>
             <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
                 <h3 style="margin:0;">${activeBrowseTopicTitle}</h3>
-                <button class="btn secondary" type="button" onclick="exportDashTopicPdf()">PDF</button>
+                <div style="display:flex; gap:8px;">
+                    ${statsShortcut}
+                    <button class="btn secondary" type="button" onclick="exportDashTopicPdf()">PDF</button>
+                </div>
             </div>
             <div class="chat-thread" id="dashPosts"><div class="muted">Loading messages…</div></div>
             <form class="composer" id="dashComposerForm">
@@ -540,7 +599,7 @@ function closeCreateGroupModalOnOuterClick(event) {
         </div>
     `;
 }
-/*---------------------------------------------------------*/
+/*------------------------ added---------------------------------*/
 function groupMembersModalHtml() {
     return `
         <div id="groupMembersModal" class="modal-overlay" onclick="closeGroupMembersModalOnOuterClick(event)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
@@ -651,6 +710,11 @@ function toggleGroupMembersExpanded() {
 window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
 
     function openGroupTopics(groupId, groupName) {
+        const g = myGroups.find(x => x.group_id === groupId);
+        if (g && (g.is_banned || g.banned)) {
+            alert("You are blacklisted and banned from accessing this group.");
+            return;
+        }
         //////////////added---------------
         const group = myGroups.find(g => g.group_id === groupId);
     const joined = group && (group.is_member || group.is_group_admin);
@@ -692,8 +756,8 @@ window.showNotMemberNotice = showNotMemberNotice;
         browseView = 'posts';
         renderGroupsBrowser();
         if (typeof window.subscribeToTopic === 'function') {
-        window.subscribeToTopic(topicId); // Explicitly pass the topic ID to subscribe!
-    }
+            window.subscribeToTopic(topicId); // Explicitly pass the topic ID to subscribe!
+        }
     }
     window.openTopicPosts = openTopicPosts;
 
@@ -709,6 +773,44 @@ window.showNotMemberNotice = showNotMemberNotice;
     }
     window.browseGoBack = browseGoBack;
 
+    /* ---------- Group members toggle (names under each group card in Groups list) ---------- */
+    const groupMembersCache = {};
+
+    async function toggleGroupMembers(event, groupId) {
+        event.stopPropagation();
+        const namesEl = document.getElementById(`membersNames-${groupId}`);
+        const toggleEl = document.getElementById(`membersToggle-${groupId}`);
+        if (!namesEl || !toggleEl) return;
+
+        const isOpen = namesEl.classList.contains('open');
+        if (isOpen) {
+            namesEl.classList.remove('open');
+            toggleEl.textContent = 'Show members';
+            return;
+        }
+
+        toggleEl.textContent = 'Hide members';
+        namesEl.classList.add('open');
+
+        if (groupMembersCache[groupId]) {
+            namesEl.innerHTML = groupMembersCache[groupId];
+            return;
+        }
+
+        namesEl.innerHTML = '<span class="muted">Loading members…</span>';
+
+        const data = await api(`/groups/${groupId}/members`);
+        const members = (data && (data.data || data)) || [];
+
+        const html = members.map(m => `<span class="member-chip">${m.full_name || m.name}</span>`).join('')
+            || '<span class="muted">No members yet.</span>';
+
+        groupMembersCache[groupId] = html;
+        namesEl.innerHTML = html;
+    }
+    window.toggleGroupMembers = toggleGroupMembers;
+
+ 
     async function joinGroupInline(event, groupId) {
         event.stopPropagation();
         const ok = window.confirm('By joining, you agree to the group rules (see /group-rules). Continue?');
@@ -736,7 +838,7 @@ window.showNotMemberNotice = showNotMemberNotice;
             <div class="card">
                 <strong>${g.name}</strong>
                 <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                <div style="margin-top: 8px;">
+                <div style="margin-top: 8px; display:flex; gap:8px;">
                     <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">View group statistics</a>
                 </div>
             </div>
@@ -749,6 +851,20 @@ window.showNotMemberNotice = showNotMemberNotice;
         if (!activeBrowseGroupId) return;
         const listEl = document.getElementById('groupTopicsList');
         if (!listEl) return;
+ 
+        const data = await api(`/groups/${activeBrowseGroupId}/topics`);
+        
+        // Block access dynamically if API returns ban restrictions
+        if (data && (data.error || data.message) && (data.error?.toLowerCase().includes('ban') || data.message?.toLowerCase().includes('ban') || data.error?.toLowerCase().includes('blacklist') || data.message?.toLowerCase().includes('blacklist'))) {
+            listEl.innerHTML = `<div class="empty-state" style="color: #dc2626; font-weight: bold;">${data.error || data.message}</div>`;
+            const form = document.getElementById('newTopicFormInline');
+            if (form) form.style.display = 'none';
+            return;
+        }
+
+        const topics = (data && (data.data || data)) || [];
+ 
+        listEl.innerHTML = topics.map(t => `
 
         if (reset) {
             browseTopicsPage = 1;
@@ -800,14 +916,25 @@ window.showNotMemberNotice = showNotMemberNotice;
         if (!container) return;
 
         const t = await api(`/topics/${activeBrowseTopicId}`);
-        if (!t || t.message) {
-            container.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
+        if (!t || t.message || t.error) {
+            const errorMsg = (t && (t.error || t.message)) || 'This topic could not be loaded.';
+            container.innerHTML = `<div class="muted" style="color: #dc2626; font-weight: bold;">${errorMsg}</div>`;
+            const composer = document.getElementById('dashComposerForm');
+            if (composer) composer.style.display = 'none';
             return;
         }
 
+        // Ensure composer form visibility if accessible
+        const composer = document.getElementById('dashComposerForm');
+        if (composer) composer.style.display = 'flex';
+ 
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
         const posts = t.posts || [];
-
+ 
+        // Reset the lookup table that Forward/Flag use to find a message's
+        // full content + id by index, without stuffing raw/quoted text into
+        // onclick attrs.
+        
         // Reset the lookup table that Forward uses to find a message's full
         // content by index, without stuffing raw/quoted text into onclick attrs.
         currentTopicMessages = [];
@@ -821,7 +948,7 @@ window.showNotMemberNotice = showNotMemberNotice;
                 const replyMine = r.author_id === myId;
                 const replySide = replyMine ? 'mine' : 'theirs';
                 const replyAuthorName = r.author ? (r.author.full_name || r.author.name) : 'User';
-                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true);
+                return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true, r.reply_id ?? r.post_id, r.is_flagged);
             }).join('');
 
             return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
@@ -829,15 +956,27 @@ window.showNotMemberNotice = showNotMemberNotice;
 
         container.scrollTop = container.scrollHeight;
     }
-
-    // One bubble + its Reply/Forward/timestamp row. `isReply` just adds the
-    // connecting-line modifier class — no extra wrapper div needed.
-    function renderMsgGroup(side, authorName, content, time, isReply) {
+ 
+    // One bubble + its Reply/Forward/Flag/timestamp row. `isReply` adds the
+    // connecting-line modifier class AND tells flagPost() which endpoint to
+    // call (MODIFIED — this used to only affect styling; see flagPost
+    // below). `postId` is the post/reply's database id (used by Forward's
+    // share endpoint and by Flag). `flagged` reflects the post's current
+    // moderation state as returned by the API.
+    function renderMsgGroup(side, authorName, content, time, isReply, postId, flagged) {
         const msgIndex = currentTopicMessages.length;
-        currentTopicMessages.push({ author: authorName, content });
+        currentTopicMessages.push({ author: authorName, content, postId, isReply: !!isReply, flagged: !!flagged });
 
+        // Flag is only offered to the admin of the group the active topic
+        // belongs to — mirrors the server-side authorization that must also
+        // be enforced on the /posts/{id}/flag endpoint itself.
+        const canFlag = isGroupAdmin(activeBrowseGroupId);
+        const flagHtml = canFlag
+            ? `<a class="flag-link${flagged ? ' flagged' : ''}" onclick="flagPost(${msgIndex})">${flagged ? 'Flagged' : 'Flag'}</a>`
+            : '';
+ 
         return `
-            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}">
+            <div class="msg-group ${side}${isReply ? ' is-reply' : ''}${flagged ? ' is-flagged' : ''}" id="${postId ? 'post-' + postId : ''}">
                 <div class="bubble">
                     <span class="bubble-author">${authorName}</span>
                     <p class="bubble-text">${content}</p>
@@ -845,12 +984,75 @@ window.showNotMemberNotice = showNotMemberNotice;
                 <div class="msg-actions">
                     <a class="reply-link" onclick="focusComposerWithMention('${authorName.replace(/'/g, "\\'")}')">Reply</a>
                     <a class="forward-link" onclick="openForwardModal(${msgIndex})">Forward</a>
+                    ${flagHtml}
                     <span class="msg-time">${time}</span>
                 </div>
             </div>
         `;
     }
 
+   
+    async function flagPost(msgIndex) {
+        const msg = currentTopicMessages[msgIndex];
+        if (!msg || !msg.postId) return;
+        if (!isGroupAdmin(activeBrowseGroupId)) return; // client-side guard only; server must enforce this too
+
+        const ok = window.confirm(msg.flagged ? 'Remove flag from this message?' : 'Flag this message for review?');
+        if (!ok) return;
+
+        const endpoint = msg.isReply ? `/replies/${msg.postId}/flag` : `/posts/${msg.postId}/flag`;
+        const response = await api(endpoint, {
+            method: 'POST',
+            body: { flagged: !msg.flagged }
+        });
+
+        if (response && response.error) {
+            alert(response.error);
+            return;
+        }
+
+        // Notify if flagging triggered a blacklist and ban
+        if (response && response.message) {
+            alert(response.message);
+        }
+
+        msg.flagged = !msg.flagged;
+
+        // Update the flag link and bubble highlight in place instead of
+        // re-rendering the whole thread.
+        const postEl = document.getElementById(`post-${msg.postId}`);
+        if (postEl) {
+            postEl.classList.toggle('is-flagged', msg.flagged);
+            const flagLink = postEl.querySelector('.flag-link');
+            if (flagLink) {
+                flagLink.textContent = msg.flagged ? 'Flagged' : 'Flag';
+                flagLink.classList.toggle('flagged', msg.flagged);
+            }
+        }
+    }
+    window.flagPost = flagPost;
+
+    /* ---------- Post exclusion checklist ---------- */
+    async function loadGroupMembersForExclusion() {
+        const listEl = document.getElementById('dashExclusionList');
+        if (!listEl || !activeBrowseGroupId) return;
+
+        const data = await api(`/groups/${activeBrowseGroupId}/members`);
+        const members = (data && (data.data || data)) || [];
+        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
+
+        listEl.innerHTML = members
+            .filter(m => m.user_id !== myId)
+            .map(m => `
+                <label>
+                    <input type="checkbox" value="${m.user_id}">
+                    ${m.full_name || m.name}
+                </label>
+            `).join('') || '<div class="muted" style="font-size:13px;">No other members in this group.</div>';
+    }
+    window.loadGroupMembersForExclusion = loadGroupMembersForExclusion;
+
+ 
     // Clicking "Reply" under a message jumps to the composer and, if it's
     // empty, pre-fills an @mention of who's being replied to.
     function focusComposerWithMention(authorName) {
@@ -1087,7 +1289,9 @@ window.showNotMemberNotice = showNotMemberNotice;
             e.preventDefault();
             if (!activeBrowseTopicId) return;
             const textarea = document.getElementById('dashComposerInput');
-            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: [] } });
+            const excludeIds = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'))
+                .map(cb => Number(cb.value));
+            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: excludeIds } });
             textarea.value = '';
             textarea.style.height = 'auto';
             loadBrowsePosts();

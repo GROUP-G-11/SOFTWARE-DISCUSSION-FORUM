@@ -14,16 +14,24 @@
             --ink: #1c2b33;
             --slate: #3d5a6c;
             --paper: #f6f4ee;
+            --paper-dim: #ece8db;
             --accent: #2f6f5e;
             --accent-dark: #204b3f;
             --warn: #b3542e;
             --line: #d8d2c4;
+            --seal: #a8792f;
+            --seal-dim: #f2e8d5;
+            --sky: #2a5a72;
+            --sky-dim: #e6edf1;
             --radius: 6px;
+            --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --serif: 'Iowan Old Style', 'Georgia', serif;
+            --mono: ui-monospace, 'SF Mono', 'Courier New', monospace;
         }
         * { box-sizing: border-box; }
         body {
             margin: 0;
-            font-family: 'Iowan Old Style', 'Georgia', serif;
+            font-family: var(--serif);
             background: var(--paper);
             color: var(--ink);
         }
@@ -134,9 +142,14 @@
             box-shadow: 0 1px 2px rgba(28,43,51,.04);
             transition: box-shadow .18s ease, border-color .18s ease;
         }
+
+        .panel-lecturer { border-left: 4px solid var(--warn); }
+        .panel-student { border-left: 4px solid var(--sky); background: var(--sky-dim); }
+        .panel-create { border-left: 4px solid var(--accent-dark); }
+
         .btn {
             display: inline-block;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: var(--sans);
             background: var(--accent);
             color: #fff;
             border: none;
@@ -156,7 +169,7 @@
         .btn.warn:hover { background: #8f3f21; box-shadow: 0 4px 10px rgba(143,63,33,.25); }
         input, textarea, select {
             width: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: var(--sans);
             padding: 10px 12px;
             border: 1px solid var(--line);
             border-radius: var(--radius);
@@ -174,12 +187,12 @@
             outline: 2px solid var(--accent);
             outline-offset: 2px;
         }
-        label { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: var(--slate); display:block; margin-bottom: 4px; }
-        .eyebrow { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: var(--accent); font-weight: 600; }
-        .muted { color: var(--slate); font-size: 14px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        label { font-family: var(--sans); font-size: 13px; color: var(--slate); display: block; margin-bottom: 4px; }
+        .eyebrow { font-family: var(--sans); text-transform: uppercase; letter-spacing: .08em; font-size: 12px; color: var(--accent); font-weight: 600; }
+        .muted { color: var(--slate); font-size: 14px; font-family: var(--sans); }
         .flag { color: var(--warn); font-weight: 600; }
-        .error { color: var(--warn); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; margin-top: -6px; margin-bottom: 10px; }
-        table { width: 100%; border-collapse: collapse; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; }
+        .error { color: var(--warn); font-family: var(--sans); font-size: 13px; margin-top: -6px; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 14px; }
         th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
         tbody tr { transition: background .12s ease; }
         tbody tr:hover { background: #faf9f6; }
@@ -320,6 +333,9 @@
                 <a href="/dashboard?panel=panel-warnings" data-dash-panel="panel-warnings" data-role="administrator" style="display:none;" class="app-nav-item {{ $panel === 'panel-warnings' ? 'active' : '' }}">
                     <span class="icon">⚠️</span> Inactivity Warnings
                 </a>
+                <a href="/dashboard?panel=panel-blacklists" data-dash-panel="panel-blacklists" data-role="administrator" style="display:none;" class="app-nav-item {{ $panel === 'panel-blacklists' ? 'active' : '' }}">
+                    <span class="icon">🚫</span> Blacklisted Users
+                </a>
                 <a href="/admin/users" data-role="administrator" style="display:none;" class="app-nav-item {{ request()->is('admin/users') ? 'active' : '' }}">
                     <span class="icon">🔑</span> Manage Users
                 </a>
@@ -344,7 +360,6 @@
         </main>
     </div>
     <script>
-        // Every API call attaches the bearer token stored at login.
         const apiToken = localStorage.getItem('sdf_token');
         async function api(path, options = {}) {
             const res = await fetch('/api' + path, {

@@ -16,18 +16,32 @@ class GroupController extends Controller
 {
     public function index(Request $request)
     {
-        $groups = Group::withCount(['members', 'topics'])->paginate(20);
-        // Let the dashboard tell members apart from groups the student
-        // hasn't joined yet, since only members may open a group's topics.
         $userId = $request->user()->user_id;
-        $groups->getCollection()->transform(function (Group $group) use ($request, $userId) {
-            $group->is_member = $request->user()->hasRole('Administrator')
-                || $group->members()->where('users.user_id', $userId)->exists();
+
+        // FIXED: this previously returned bare Group rows with no indication
+        // of whether the requesting user is already a member/admin, so the
+        // student dashboard's "Join" button never flipped to "Joined" after
+        // joining — g.is_member / g.is_group_admin were always undefined.
+        // withExists() adds a per-row boolean scoped to this request's user
+        // (not a global column), and is_group_admin covers both the group
+        // owner (admin_id) and any student appointed as an active GroupAdmin.
+        $groups = Group::withCount(['members', 'topics'])
+            ->withExists([
+                'members as is_member' => fn ($q) => $q->where('users.user_id', $userId),
+            ])
+            ->paginate(20);
+
+        $groups->getCollection()->transform(function (Group $group) use ($userId) {
+            $group->is_group_admin = $group->admin_id == $userId
+                || GroupAdmin::where('group_id', $group->group_id)
+                    ->where('user_id', $userId)
+                    ->where('is_active', true)
+                    ->exists();
 
             return $group;
         });
 
-        return response()->json($groups );
+        return response()->json($groups);
     }
 
     public function store(Request $request)
@@ -69,19 +83,6 @@ class GroupController extends Controller
     public function show(Group $group)
     {
         return response()->json($group->load(['admin', 'topics' => fn ($q) => $q->latest()->limit(10)]));
-    }
-
-    public function joining(Group $group)
-   {
-    $user = auth()->user();
-
-    $user->groups()->syncWithoutDetaching([
-        $group->id
-    ]);
-
-    return response()->json([
-        'message' => 'Joined group successfully'
-    ]);
     }
 
     /** Join a group; requires the member to accept the group's rules (SDD "Membership" table). */
