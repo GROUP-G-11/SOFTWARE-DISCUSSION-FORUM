@@ -22,10 +22,34 @@ let timerHandle = null;
 
 async function startQuiz() {
     attempt = await api(`/quizzes/${quizId}/attempts/start`, { method: 'POST' });
+
+    // The quiz isn't startable yet/anymore (not open, blacklisted, opens later,
+    // or its scheduled window already ended) — the API returns a message and
+    // no attempt_id in that case.
+    if (!attempt || !attempt.attempt_id) {
+        document.getElementById('quizTitle').textContent = 'Quiz unavailable';
+        document.getElementById('quizForm').innerHTML = `
+            <div class="card">${(attempt && attempt.message) || 'This quiz could not be started right now.'}</div>
+        `;
+        document.getElementById('submitBtn').style.display = 'none';
+        return;
+    }
+
     document.getElementById('quizTitle').textContent = attempt.quiz.title;
 
-    const duration = attempt.quiz.configuration?.duration_minutes ?? 10;
-    secondsLeft = duration * 60;
+    // seconds_remaining is computed server-side from the quiz's actual
+    // scheduled end time (start_time + duration_minutes), so every student
+    // sees a countdown to the same real clock moment rather than a fresh
+    // timer starting whenever they happen to click "Take quiz".
+    secondsLeft = (typeof attempt.seconds_remaining === 'number')
+        ? attempt.seconds_remaining
+        : (attempt.quiz.configuration?.duration_minutes ?? 10) * 60;
+
+    if (secondsLeft <= 0) {
+        submitQuiz(true);
+        return;
+    }
+
     tickTimer();
     timerHandle = setInterval(tickTimer, 1000);
 
@@ -75,7 +99,21 @@ async function submitQuiz(autoSubmitted = false) {
     document.getElementById('submitBtn').disabled = true;
     const resultBox = document.getElementById('result');
     resultBox.style.display = 'block';
-    resultBox.innerHTML = `<h3>Score: ${result.score}</h3><p class="muted">${autoSubmitted ? 'Auto-submitted when time expired.' : 'Submitted manually.'}</p>`;
+
+    // If this window was auto-launched by the dashboard when the quiz's
+    // configured time arrived (rather than opened by the student clicking
+    // a link themselves), close it automatically a few seconds after an
+    // auto-submit so it doesn't linger once the quiz window has ended.
+    const isAutoLaunchedPopup = !!window.opener;
+    const closeNote = (autoSubmitted && isAutoLaunchedPopup)
+        ? ' This window will close automatically in a few seconds.'
+        : '';
+
+    resultBox.innerHTML = `<h3>Score: ${result.score}</h3><p class="muted">${autoSubmitted ? 'Auto-submitted when time expired.' : 'Submitted manually.'}${closeNote}</p>`;
+
+    if (autoSubmitted && isAutoLaunchedPopup) {
+        setTimeout(() => window.close(), 5000);
+    }
 }
 
 document.getElementById('submitBtn').addEventListener('click', () => submitQuiz(false));
