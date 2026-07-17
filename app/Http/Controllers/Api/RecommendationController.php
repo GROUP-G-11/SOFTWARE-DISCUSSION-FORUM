@@ -32,8 +32,11 @@ class RecommendationController extends Controller
 
         $groupIds = $user->groups()->pluck('groups.group_id');
 
+        // withCount('posts') added so the dashboard's "N posts" line under
+        // each recommendation is real instead of always falling back to 0.
         $unseenTopics = Topic::whereIn('group_id', $groupIds)
             ->whereNotIn('topic_id', $seenTopicIds)
+            ->withCount('posts')
             ->latest()
             ->limit(50)
             ->get();
@@ -48,6 +51,11 @@ class RecommendationController extends Controller
             );
         })->sortByDesc('relevance_score')->values()->take(10);
 
-        return response()->json($recommendations->load('topic'));
+        // Re-load the topic relation WITH the posts count — a plain
+        // ->load('topic') re-queries Topic fresh and drops the count that
+        // was only present on the (now-discarded) $unseenTopics collection.
+        return response()->json(
+            $recommendations->load(['topic' => fn ($q) => $q->withCount('posts')])
+        );
     }
 }

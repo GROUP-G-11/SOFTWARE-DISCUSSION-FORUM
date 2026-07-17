@@ -10,6 +10,6 @@
 .env
 .env.*
 /public/build/
-public/build/assets/
-public/build/manifest.json
+/public/build/assets/
+/public/build/manifest.json
 /public/hot/
