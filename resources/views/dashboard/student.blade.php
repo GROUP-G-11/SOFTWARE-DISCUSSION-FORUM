@@ -1370,6 +1370,8 @@ window.showNotMemberNotice = showNotMemberNotice;
                 alert('Your message could not be posted. Please try again.');
                 return;
             }
+         }
+   });
 
             textarea.value = '';
             textarea.style.height = 'auto';
