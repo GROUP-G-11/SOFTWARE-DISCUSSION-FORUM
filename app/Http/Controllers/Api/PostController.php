@@ -63,13 +63,6 @@ class PostController extends Controller
             'posted_at' => now(),
         ]);
         $post->load('author');
-        broadcast(new MessageBroadcast($post, $post->topic_id));
-
-//broadcast(new MessageBroadcast($post))->toOthers();
-
-        // RIGHT: Pass only the $post model instance
-        // event(new MessageBroadcast($post));
-        //event(new MessageBroadcast($topic->topic_id, 'post', $post->load('author')->toArray()));
 
         foreach ($request->input('exclude_user_ids', []) as $excludedUserId) {
             PostExclusion::create(['post_id' => $post->post_id, 'excluded_user_id' => $excludedUserId]);
@@ -92,6 +85,19 @@ class PostController extends Controller
                 'Post',
                 $post->post_id
             );
+        }
+
+        // Real-time push is a nice-to-have on top of the post/exclusions
+        // above, which are already safely saved by this point either way.
+        // It must not be able to take the whole request down when Reverb
+        // isn't running (e.g. local dev with Reverb off, or a network
+        // blip) - broadcast() with QUEUE_CONNECTION=sync talks to Reverb
+        // synchronously right here, so a connection failure needs to be
+        // swallowed rather than bubbling up and aborting everything above.
+        try {
+            broadcast(new MessageBroadcast($post, $post->topic_id));
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         return response()->json($post->load('author'), 201);
