@@ -38,3 +38,7 @@ Broadcast::channel('topic.{topicId}', function ($user, int $topicId) {
 
     return false;
 },['guards' => ['sanctum']]);
+////notifications
+Broadcast::channel('user.{userId}', function ($user, int $userId) {
+    return (int) $user->user_id === $userId;
+}, ['guards' => ['sanctum']]);
