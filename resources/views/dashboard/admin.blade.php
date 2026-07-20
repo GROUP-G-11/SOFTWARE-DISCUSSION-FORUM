@@ -26,7 +26,7 @@
                 <!-- Step 6 Added: Action button to download the currently viewed group metrics copy -->
                 <button class="btn" id="exportReportBtn" onclick="exportAnalyticsReport()" style="display: none;">Download and Export Report</button>
             </div>
-            <p class="muted">As an administrator you can view statistics and the gradebook for every group on the platform.</p>
+           <!-- <p class="muted">As an administrator you can view statistics and the gradebook for every group on the platform.</p> -->
             
             <!-- Step 5 Added: Inline placeholder canvas area to render graphic charts safely under groups -->
             <div id="groupStatsVisualization" class="card" style="margin-bottom: 16px; padding: 16px; display: none;">
