@@ -50,7 +50,7 @@
              living in two separately-headed tables. -->
         <div class="dash-panel" id="panel-warnings">
             <div class="section-title"><h2 style="margin:0;">Inactivity Warnings and Flags</h2></div>
-            <p class="muted">Inactivity warnings and content flagged by lecturers or student group admins, most recent first.</p>
+            
             <div id="warningsList" class="card muted">Loading…</div>
         </div>
 
