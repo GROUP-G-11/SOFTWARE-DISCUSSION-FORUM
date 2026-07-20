@@ -57,7 +57,7 @@
         <!-- ================= BLACKLISTED USERS ================= -->
         <div class="dash-panel" id="panel-blacklists">
             <div class="section-title"><h2 style="margin:0;">Blacklisted Users</h2></div>
-            <p class="muted">Currently-active suspensions. "Whole account" bans (issued for prolonged inactivity) block login entirely; group bans only block that one group. Lift ends a suspension immediately.</p>
+            <!--<p class="muted">Currently-active suspensions. "Whole account" bans (issued for prolonged inactivity) block login entirely; group bans only block that one group. Lift ends a suspension immediately.</p> -->
             <div id="blacklistsList" class="card muted">Loading…</div>
         </div>
     </div>
