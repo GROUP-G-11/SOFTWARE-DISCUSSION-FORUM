@@ -35,6 +35,55 @@
             background: var(--paper);
             color: var(--ink);
         }
+/* for notifications */
+        .notif-card {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; margin-bottom: 10px; cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.notif-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+.notif-card.unread { background: #fafcfb; }
+
+.notif-icon {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    background: #eef2f1; color: var(--accent);
+}
+
+/* Post / Reply — blue family */
+.notif-card.post .notif-icon, .notif-card.reply .notif-icon { background: #dbeafe; color: #1d4ed8; }
+.notif-card.post.unread, .notif-card.reply.unread { border-left-color: #1d4ed8; }
+
+/* Quiz — amber family */
+.notif-card.quiz .notif-icon { background: #fef3c7; color: #b45309; }
+.notif-card.quiz.unread { border-left-color: #b45309; }
+
+/* Flag / moderation — red family */
+.notif-card.flag .notif-icon { background: #fee2e2; color: #dc2626; }
+.notif-card.flag.unread { border-left-color: #dc2626; }
+
+/* Warning — orange family */
+.notif-card.warning .notif-icon { background: #ffedd5; color: #c2410c; }
+.notif-card.warning.unread { border-left-color: #c2410c; }
+
+/* Blacklist — dark/severe */
+.notif-card.blacklist .notif-icon { background: #ede9fe; color: #6d28d9; }
+.notif-card.blacklist.unread { border-left-color: #6d28d9; }
+
+.notif-body { flex: 1; min-width: 0; }
+.notif-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.notif-message { font-size: 13.5px; color: var(--slate); }
+.notif-time { font-size: 12px; color: var(--slate); margin-top: 4px; }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 6px; }
+
+.nav-badge {
+    background: #dc2626; color: #fff; font-size: 11px; font-weight: 700;
+    min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px;
+    display: none; align-items: center; justify-content: center; margin-left: auto;
+}
+.nav-badge.show { display: inline-flex; }
         /* ---------- Global top bar: full-width strip above the shell ----------
            Cream, same tone as the page background, so it reads as part of
            the canvas rather than a separate colored banner. Holds the brand
@@ -386,9 +435,10 @@
                 <a href="/dashboard?panel=panel-recommendations" data-dash-panel="panel-recommendations" data-role="student" style="display:none;" class="app-nav-item {{ $panel === 'panel-recommendations' ? 'active' : '' }}">
                     <span class="icon">✨</span> Recommended
                 </a>
-                <a href="/dashboard?panel=panel-notifications" data-dash-panel="panel-notifications" data-role="student,lecturer" style="display:none;" class="app-nav-item {{ $panel === 'panel-notifications' ? 'active' : '' }}">
-                    <span class="icon">🔔</span> Notifications
-                </a>
+                <a href="/dashboard?panel=panel-notifications" data-dash-panel="panel-notifications" data-role="student,lecturer" style="display:none;" class="app-nav-item {{ $panel === 'panel-notifications' ? 'active' : '' }}" onclick="markNotificationsSeen()">
+    <span class="icon">🔔</span> Notifications
+    <span class="nav-badge" id="notifBadge"></span>
+</a>
 
                 <div class="app-nav-section" data-role="administrator" style="display:none;" id="navSectionAdmin">Administration</div>
                 <a href="/dashboard?panel=panel-overview" data-dash-panel="panel-overview" data-role="administrator" style="display:none;" class="app-nav-item {{ $onAdminDash && ($panel === 'panel-overview' || !$panel) ? 'active' : '' }}">
@@ -439,6 +489,88 @@
             if (res.status === 401) { window.location = '/'; return; }
             return res.json();
         }
+/* for notifications */
+         function notifIconMeta(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('quiz'))       return { icon: '📝', cls: 'quiz' };
+    if (t.includes('blacklist'))  return { icon: '🔒', cls: 'blacklist' };
+    if (t.includes('warning'))    return { icon: '⚠️', cls: 'warning' };
+    if (t === 'reply')            return { icon: '↩️', cls: 'reply' };
+    if (t.includes('new post'))   return { icon: '💬', cls: 'post' };
+    if (t.includes('general'))    return { icon: '🚩', cls: 'flag' }; // your flag notifications use type 'General'
+    return { icon: '🔔', cls: '' };
+
+}
+
+function relativeTime(dt) {
+    if (!dt) return '';
+    const mins = Math.floor((Date.now() - new Date(dt).getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dt).toLocaleDateString();
+}
+
+function updateNotifBadge(count) {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.classList.add('show');
+    } else {
+        badge.classList.remove('show');
+    }
+}
+window.updateNotifBadge = updateNotifBadge;
+
+async function refreshNotifBadge() {
+    if (!localStorage.getItem('sdf_token')) return;
+    const data = await api('/notifications/unread-count');
+    updateNotifBadge(data?.unread_count ?? 0);
+}
+window.refreshNotifBadge = refreshNotifBadge;
+
+window.markNotificationsSeen = async function () {
+    await api('/notifications/read-all', { method: 'PATCH', body: {} });
+    updateNotifBadge(0);
+};
+
+/* ---------- Live push (optional layer on top of polling) ---------- */
+let _notifChannelJoined = false;
+let _notifEchoWaitAttempts = 0;
+
+function initNotificationChannel() {
+    if (_notifChannelJoined) return;
+    if (!window.CURRENT_USER) return;
+
+    if (typeof window.Echo === 'undefined') {
+        _notifEchoWaitAttempts++;
+        if (_notifEchoWaitAttempts > 20) {
+            console.warn('Echo never loaded after 10s - relying on polling only this session.');
+            return;
+        }
+        setTimeout(initNotificationChannel, 500);
+        return;
+    }
+
+    _notifChannelJoined = true;
+    window.Echo.private(`user.${window.CURRENT_USER.user_id}`)
+        .listen('.notification.new', (e) => {
+            const badge = document.getElementById('notifBadge');
+            const current = (badge && badge.classList.contains('show')) ? (parseInt(badge.textContent, 10) || 0) : 0;
+            updateNotifBadge(current + 1);
+
+            if (typeof window.prependLiveNotification === 'function') {
+                window.prependLiveNotification(e);
+            }
+        })
+        .error((error) => {
+            console.error('Notification channel subscription error:', error);
+        });
+}
         // Mobile hamburger menu: nav sits collapsed in normal document flow
         // (see the 760px query) and this just toggles it open/closed. No-op
         // on desktop since the button is display:none there.
@@ -560,9 +692,12 @@
         // them to the direct one-hop URL. Pages that also call
         // loadCurrentUser() themselves (dashboards) just get a second,
         // harmless /me lookup.
-        if (!document.body.classList.contains('auth-page') && localStorage.getItem('sdf_token')) {
-            loadCurrentUser();
-        }
+        //changed to accommodate notifications
+       if (!document.body.classList.contains('auth-page') && localStorage.getItem('sdf_token')) {
+    loadCurrentUser().then(initNotificationChannel);
+    refreshNotifBadge();
+    setInterval(refreshNotifBadge, 20000); // safety net if the socket drops or never connects
+}
     </script>
     @yield('scripts')
 </body>
