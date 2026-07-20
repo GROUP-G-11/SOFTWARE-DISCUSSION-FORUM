@@ -153,13 +153,33 @@
     .modal-box select {
         width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit;
     }
+ .topics-head {display: flex;   align-items: center;    justify-content: space-between;
+       flex-wrap: wrap;    gap: 12px;    margin-bottom: 14px;}
+      .topics-head-actions {
+       display: flex;    gap: 8px;    flex-shrink: 0;}
+    @media (max-width: 640px) {
+        .groups-header { flex-direction: column; align-items: stretch; gap: 10px; }
+        .groups-header .btn { width: 100%; }
+
+        .topics-head { flex-direction: column; align-items: stretch; gap: 10px; }
+        .topics-head-actions { width: 100%; }
+        .topics-head-actions .btn { flex: 1; }
+
+        .msg-group { max-width: 90%; }
+        .msg-group.is-reply { margin-left: 14px; max-width: calc(90% - 14px); padding-left: 10px; }
+
+        .chat-thread { padding: 12px; min-height: 200px; }
+        .composer { padding: 6px 6px 6px 12px; }
+
+        .back-link { font-size: 12.5px; padding: 6px 10px; }
+    }
 </style>
 
 <div class="dash-shell">
     <div class="dash-main">
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
-            <div class="section-title"><h2 style="margin:0;">Groups</h2></div>
+            
             <p class="muted">Groups you own or administer. Statistics and the gradebook are only available for groups where you're the lecturer or an active group admin.</p>
 
             
@@ -351,6 +371,14 @@
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
     let currentTopicMessages = []; // index -> {author, content, postId, isReply, flagged}, used by Forward + Flag
+     /**********adddedd**************** */
+    let groupMembersExpanded = false;
+    let allGroupMembers = []; 
+
+  let browseTopicsPage = 1;
+    let browseTopicsSearch = '';
+    let browseTopicsCategory = '';
+   
 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
@@ -496,39 +524,62 @@
     // MODIFIED: layout now mirrors the student dashboard's Groups panel —
     // a "Groups" header with a "+ Create Group" button that opens a modal,
     // instead of an inline create-group card stacked under the list.
+  ///////////replaced-------------------
     function groupsViewHtml() {
-        const rows = myGroups.map(g => {
-            const isBanned = g.is_banned || g.banned;
-            return `
-                <div class="group-card-wrap" data-group-id="${g.group_id}">
-                    <div class="group-item" onclick="${isBanned ? `alert('You are blacklisted/banned from this group.')` : `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`}">
-                        <div class="group-info">
-                            <strong>${g.name}${g.is_owner ? ' <span class="badge role-lecturer" style="margin-left:6px; font-size:11px;">Owner</span>' : ''}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
-                            <div class="muted">${g.description ?? ''} · ${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                        </div>
-                        ${g.can_view_group_statistics ? `
-                            <div class="group-actions" onclick="event.stopPropagation();">
-                                <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 12px;">Statistics</a>
-                                <a class="btn btn-secondary" href="/groups/${g.group_id}/gradebook" style="padding: 4px 10px; font-size: 12px;">Gradebook</a>
-                            </div>
-                        ` : ''}
-                    </div>
-                    <a class="members-toggle" id="membersToggle-${g.group_id}" onclick="toggleGroupMembers(event, ${g.group_id})">Show members</a>
-                    <div class="members-names" id="membersNames-${g.group_id}"></div>
-                </div>
-            `;
-        }).join('') || '<div class="empty-state">You are not in any groups yet. Create one below.</div>';
+    // 1. Generate the list of group rows
+    const rows = myGroups.map(g => {
+        const joined = g.is_member || g.is_group_admin;
+        const isBanned = g.is_banned || g.banned;
 
+            const clickHandler = isBanned
+            ? `alert('You are blacklisted/banned from this group.')`
+            : (joined
+                ? `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`
+                : `showNotMemberNotice(${g.group_id})`);
         return `
-            <div class="groups-view-container">
-                <div class="groups-header">
-                    <h2>Groups</h2>
-                    <button class="btn" type="button" onclick="openCreateGroupModal()">+ Create Group</button>
-                </div>
-                <div class="groups-list">${rows}</div>
+             <div class="group-item" data-group-id="${g.group_id}" onclick="${clickHandler}">
+                <div class="group-info">
+                    <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
+                    <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                    ${!isBanned && !joined ? `
+                        <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
+                            You're not a member of this group yet — join to view topics.
+                        </div>
+                    ` : ''}
+            </div>
+                ${isBanned 
+                        ? '<span class="badge" style="background:#dc2626; color:#fff;">Banned</span>'
+                        : (joined
+                            ? '<span class="badge role-student">Joined</span>'
+                            : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
+                        )
+                    }
             </div>
         `;
+    }).join('') || '<div class="empty-state">No groups exist yet.</div>';
+
+    // 2. Create the Top Header with the trigger button
+    const headerHtml = `
+        <div class="groups-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2 style="margin: 0;">Groups</h2>
+            <button class="btn" type="button" onclick="openCreateGroupModal(event)">+ Create Group</button>
+        </div>
+    `;
+
+    
+    // 4. Assemble and return
+    return `
+       
+    <div class="groups-view-container">
+        ${headerHtml}
+        <div class="groups-list">
+            ${rows}
+        </div>
+    </div>
+      `;
     }
+
+// Opens the modal popup
 
     function openCreateGroupModal() {
         const modal = document.getElementById('createGroupModalOverlay');
@@ -550,19 +601,79 @@
         }
     }
     window.closeCreateGroupModalOnOuterClick = closeCreateGroupModalOnOuterClick;
-
+  /*--------------replaced------- for the topic button--------------*/
     function topicsViewHtml() {
-        return `
-            <a class="back-link" onclick="browseGoBack()">← Back to groups</a>
-            <h3 style="margin: 12px 0 2px;">${activeBrowseGroupName}</h3>
-            <p class="muted" style="margin: 0 0 14px;">Topics in this group</p>
-            <form id="newTopicFormInline" style="margin-bottom:14px;">
-                <input type="text" id="newTopicTitleInline" placeholder="New topic title…" required style="width:100%; padding:7px; margin-bottom:6px;">
-                <button class="btn" type="submit" style="width:100%;">+ New Topic</button>
-            </form>
-            <div id="groupTopicsList" class="muted">Loading topics…</div>
-        `;
-    }
+    return `
+        <div class="topics-head">
+            <div>
+                <h3>${activeBrowseGroupName}</h3>
+                <p class="muted">Topics in this group</p>
+            </div>
+            <div class="topics-head-actions">
+                <button class="btn secondary" type="button" onclick="openGroupMembersModal()" title="View members" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Members
+                </button>
+                <button class="btn" type="button" onclick="openCreateTopicModal()">+ New Topic</button>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+            <div style="position:relative; flex:1; min-width:180px;">
+                <input type="text" id="browseTopicSearch" placeholder="Search topics…" value="${escAttr(browseTopicsSearch)}"
+                    style="width:100%; padding:8px 40px 8px 8px; box-sizing:border-box;">
+                <button type="button" id="browseSearchBtn" aria-label="Search"
+                    style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:18px; padding:6px;">🔍</button>
+            </div>
+            <select id="browseCategoryFilter" style="min-width:170px; padding:8px;">
+                <option value="">All categories</option>
+            </select>
+        </div>
+
+        <div id="groupTopicsList" class="muted">Loading topics…</div>
+
+        <div style="text-align:center; margin: 14px 0;">
+            <button class="btn secondary" id="browseLoadMoreBtn" type="button" style="display:none;">Load more</button>
+        </div>
+
+        ${createTopicModalHtml()}
+        ${groupMembersModalHtml()}
+    `;
+}
+ /*----------added for topic pop up modal-------*/
+function createTopicModalHtml() {
+    return `
+        <div id="createTopicModal" class="modal-overlay" onclick="closeCreateTopicModalOnOuterClick(event)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+            <div class="modal-content" style="background:white; padding:24px; border-radius:8px; width:90%; max-width:420px; box-shadow:0 4px 15px rgba(0,0,0,0.2); position:relative;" onclick="event.stopPropagation()">
+                <span class="close-modal-btn" onclick="closeCreateTopicModal()" style="position:absolute; top:12px; right:16px; font-size:24px; cursor:pointer; color:#666; line-height:1;">&times;</span>
+                <h3 style="margin-top:0; margin-bottom:16px;">Start a new topic</h3>
+                <form id="createTopicForm">
+                    <div style="margin-bottom:16px;">
+                        <label style="display:block; margin-bottom:6px; font-weight:600; font-size:14px;">Topic title</label>
+                        <input type="text" id="newTopicTitleModal" name="title" placeholder="e.g. Week 4 discussion" required style="width:100%; padding:8px; box-sizing:border-box; border:1px solid #ccc; border-radius:4px;">
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:8px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateTopicModal()" style="background:#e5e7eb; color:#374151; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Cancel</button>
+                        <button type="submit" class="btn" style="padding:8px 16px;">Create topic</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+}
+
+ function groupMembersModalHtml() {
+    return `
+        <div id="groupMembersModal" class="modal-overlay" onclick="closeGroupMembersModalOnOuterClick(event)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+            <div class="modal-content" style="background:white; padding:24px; border-radius:8px; width:90%; max-width:420px; max-height:70vh; overflow-y:auto; box-shadow:0 4px 15px rgba(0,0,0,0.2); position:relative;" onclick="event.stopPropagation()">
+                <span class="close-modal-btn" onclick="closeGroupMembersModal()" style="position:absolute; top:12px; right:16px; font-size:24px; cursor:pointer; color:#666; line-height:1;">&times;</span>
+                <h3 style="margin-top:0; margin-bottom:16px;">${activeBrowseGroupName} members</h3>
+                <div id="groupMembersList" class="muted">Loading members…</div>
+            </div>
+        </div>
+    `;
+}
+
 
     function postsViewHtml() {
         return `
@@ -588,6 +699,120 @@
         `;
     }
 
+ function openCreateTopicModal() {
+    const modal = document.getElementById('createTopicModal');
+    if (modal) modal.style.display = 'flex';
+}
+window.openCreateTopicModal = openCreateTopicModal;
+
+function closeCreateTopicModal() {
+    const modal = document.getElementById('createTopicModal');
+    const form = document.getElementById('createTopicForm');
+    if (modal) modal.style.display = 'none';
+    if (form) form.reset();
+}
+window.closeCreateTopicModal = closeCreateTopicModal;
+
+function closeCreateTopicModalOnOuterClick(event) {
+    const modal = document.getElementById('createTopicModal');
+    if (event.target === modal) closeCreateTopicModal();
+}
+window.closeCreateTopicModalOnOuterClick = closeCreateTopicModalOnOuterClick;
+
+async function openGroupMembersModal() {
+    const modal = document.getElementById('groupMembersModal');
+    if (modal) modal.style.display = 'flex';
+    await loadGroupMembers();
+}
+window.openGroupMembersModal = openGroupMembersModal;
+
+function closeGroupMembersModal() {
+    const modal = document.getElementById('groupMembersModal');
+    if (modal) modal.style.display = 'none';
+}
+window.closeGroupMembersModal = closeGroupMembersModal;
+
+function closeGroupMembersModalOnOuterClick(event) {
+    const modal = document.getElementById('groupMembersModal');
+    if (event.target === modal) closeGroupMembersModal();
+}
+window.closeGroupMembersModalOnOuterClick = closeGroupMembersModalOnOuterClick;
+
+async function loadGroupMembers() {
+    if (!activeBrowseGroupId) return;
+    const listEl = document.getElementById('groupMembersList');
+    if (!listEl) return;
+    listEl.innerHTML = 'Loading members…';
+
+    const data = await api(`/groups/${activeBrowseGroupId}/members`);
+    allGroupMembers = (data && (data.data || data)) || [];
+    groupMembersExpanded = false; // always start collapsed when modal opens
+
+    renderGroupMembersList();
+}
+window.loadGroupMembers = loadGroupMembers;
+
+function renderGroupMembersList() {
+    const listEl = document.getElementById('groupMembersList');
+    if (!listEl) return;
+
+    if (!allGroupMembers.length) {
+        listEl.innerHTML = '<div class="empty-state">No members yet.</div>';
+        return;
+    }
+
+    const MIN_SHOWN = 3;
+    const visibleMembers = groupMembersExpanded ? allGroupMembers : allGroupMembers.slice(0, MIN_SHOWN);
+    const hasMore = allGroupMembers.length > MIN_SHOWN;
+
+    const rowsHtml = visibleMembers.map(m => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);">
+            <strong>${m.full_name || m.name}</strong>
+            ${m.is_admin ? '<span class="badge" style="background:var(--accent); color:#fff; font-size:11px;">Admin</span>' : ''}
+        </div>
+    `).join('');
+
+    // Scrollable only once expanded, so the "peek" of 3 stays compact.
+    const scrollWrapStyle = groupMembersExpanded
+        ? 'max-height:220px; overflow-y:auto;'
+        : '';
+
+    const toggleHtml = hasMore ? `
+        <button type="button" class="back-link" onclick="toggleGroupMembersExpanded()" style="margin-top:10px; width:100%; justify-content:center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(${groupMembersExpanded ? '180deg' : '0deg'}); transition: transform 0.15s ease;">
+                <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            ${groupMembersExpanded ? 'Show less' : `Show ${allGroupMembers.length - MIN_SHOWN} more`}
+        </button>
+    ` : '';
+
+    listEl.innerHTML = `
+        <div style="${scrollWrapStyle}">${rowsHtml}</div>
+        ${toggleHtml}
+    `;
+}
+
+function toggleGroupMembersExpanded() {
+    groupMembersExpanded = !groupMembersExpanded;
+    renderGroupMembersList();
+}
+window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
+
+   
+    function showNotMemberNotice(groupId) {
+    // Hide any other open notices first, so only one shows at a time
+    document.querySelectorAll('[id^="notMemberNotice-"]').forEach(el => el.style.display = 'none');
+
+    const el = document.getElementById(`notMemberNotice-${groupId}`);
+    if (!el) return;
+    el.style.display = 'block';
+
+    // Auto-hide after a few seconds so it doesn't linger forever
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+    window.showNotMemberNotice = showNotMemberNotice;
+   
     function openGroupTopics(groupId, groupName) {
         const g = myGroups.find(x => x.group_id === groupId);
         if (g && (g.is_banned || g.banned)) {
