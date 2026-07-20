@@ -42,6 +42,18 @@ class ReplyController extends Controller
             'content' => $request->content,
             'replied_at' => now(),
         ]);
+         $recipients = $post->topic->group->members()
+    ->where('users.user_id', '!=', $author->user_id)
+    ->where('users.user_id', '!=', $post->author_id)
+    ->get();
+
+$this->notifications->sendToMany(
+    $recipients,
+    'Reply',
+    "{$author->full_name} replied to a post in '{$post->topic->title}'.",
+    'Reply',
+    $reply->reply_id
+);
 
         $author->update(['last_active_at' => now()]);
         $this->recordParticipation($author, $post->topic->group_id, 'reply');
