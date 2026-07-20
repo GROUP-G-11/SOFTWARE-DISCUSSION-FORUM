@@ -80,7 +80,21 @@ class PostController extends Controller
 
         // Notify the topic creator (and, in a fuller implementation, every
         // non-excluded group member) of the new post.
-        if ($topic->created_by !== $author->user_id) {
+        $excludedIds = $request->input('exclude_user_ids', []);
+
+$recipients = $topic->group->members()
+    ->where('users.user_id', '!=', $author->user_id)
+    ->whereNotIn('users.user_id', $excludedIds)
+    ->get();
+
+$this->notifications->sendToMany(
+    $recipients,
+    'New Post',
+    "{$author->full_name} posted in '{$topic->title}'.",
+    'Post',
+    $post->post_id
+);
+       /* if ($topic->created_by !== $author->user_id) {
             $this->notifications->send(
                 $topic->creator,
                 'New Post',
@@ -88,7 +102,7 @@ class PostController extends Controller
                 'Post',
                 $post->post_id
             );
-        }
+        }*/
 
         // Real-time push is a nice-to-have on top of the post/exclusions
         // above, which are already safely saved by this point either way.
@@ -150,6 +164,15 @@ class PostController extends Controller
 
         $topicTitle = $post->topic->title ?? 'a topic';
         $responseMessage = $flagged ? 'Post flagged for moderation.' : 'Flag removed from post.';
+        
+
+        $this->notifications->send(
+    $post->author,
+    'General',
+    "Your post in '{$topicTitle}' was flagged for review by {$flagger->full_name}.",
+    'Post',
+    $post->post_id
+);
 
         if ($flagged) {
             // ADDED: flagging previously updated the row silently — no one was
