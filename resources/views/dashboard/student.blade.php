@@ -1289,7 +1289,8 @@ window.showNotMemberNotice = showNotMemberNotice;
                 return;
             }
 
-            const shareUrl = response.url;
+            const shareUrl = response.shared_url;
+           //const shareUrl = response.url;
             const textToShare = `Check out this post on the Student Discussion Forum:\n"${msg.content.substring(0, 100)}..."\nRead more here: ${shareUrl}`;
 
             // Step 6 & 7: Redirect or Deep Link
