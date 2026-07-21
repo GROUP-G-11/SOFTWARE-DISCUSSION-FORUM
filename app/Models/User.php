@@ -53,6 +53,10 @@ class User extends Authenticatable
     {
         return $this->password_hash;
     }
+    public function isMemberOf($groupId): bool
+    {
+        return $this->groups()->where('groups.group_id', $groupId)->exists();
+    }
 
     /* ---------------- Relationships ---------------- */
 

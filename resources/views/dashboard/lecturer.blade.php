@@ -10,6 +10,11 @@
     .back-link { display: inline-block; color: var(--accent); font-weight: 600; cursor: pointer; }
     .back-link:hover { text-decoration: underline; }
 
+    /* ---------- Groups panel header (mirrors the student dashboard) ---------- */
+    .groups-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .groups-header h2 { margin: 0; }
+    .groups-list { display: flex; flex-direction: column; }
+
     .group-item, .topic-item {
         display: flex; align-items: center; justify-content: space-between; gap: 10px;
         padding: 12px 4px; cursor: pointer;
@@ -39,6 +44,20 @@
     .members-names.open { display: flex; }
     .members-names .member-chip {
         background: #eef2f1; border-radius: 12px; padding: 3px 10px; font-size: 12.5px;
+    }
+
+    /* ---------- Create-group modal (mirrors the student dashboard) ---------- */
+    .create-group-modal-overlay {
+        position: fixed; inset: 0; background: rgba(15, 23, 20, 0.45);
+        display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px;
+    }
+    .create-group-modal-overlay.open { display: flex; }
+    .create-group-modal-box {
+        background: #fff; border-radius: var(--radius); padding: 20px;
+        width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative;
+    }
+    .create-group-modal-box .close-modal-btn {
+        position: absolute; top: 12px; right: 16px; font-size: 22px; cursor: pointer; color: #666; line-height: 1;
     }
 
     /* Chat thread + composer, reused from the standalone topic page so the
@@ -134,16 +153,33 @@
     .modal-box select {
         width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit;
     }
+ .topics-head {display: flex;   align-items: center;    justify-content: space-between;
+       flex-wrap: wrap;    gap: 12px;    margin-bottom: 14px;}
+      .topics-head-actions {
+       display: flex;    gap: 8px;    flex-shrink: 0;}
+    @media (max-width: 640px) {
+        .groups-header { flex-direction: column; align-items: stretch; gap: 10px; }
+        .groups-header .btn { width: 100%; }
+
+        .topics-head { flex-direction: column; align-items: stretch; gap: 10px; }
+        .topics-head-actions { width: 100%; }
+        .topics-head-actions .btn { flex: 1; }
+
+        .msg-group { max-width: 90%; }
+        .msg-group.is-reply { margin-left: 14px; max-width: calc(90% - 14px); padding-left: 10px; }
+
+        .chat-thread { padding: 12px; min-height: 200px; }
+        .composer { padding: 6px 6px 6px 12px; }
+
+        .back-link { font-size: 12.5px; padding: 6px 10px; }
+    }
 </style>
 
-<div class="eyebrow">Lecturer Dashboard</div>
-<h1 id="welcome">Loading your dashboard…</h1>
- 
 <div class="dash-shell">
     <div class="dash-main">
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
-            <div class="section-title"><h2 style="margin:0;">Groups</h2></div>
+            
             <p class="muted">Groups you own or administer. Statistics and the gradebook are only available for groups where you're the lecturer or an active group admin.</p>
 
             
@@ -298,6 +334,28 @@
         </div>
     </div>
 </div>
+
+<!-- ================= Create Group modal (mirrors the student dashboard) ================= -->
+<div class="create-group-modal-overlay" id="createGroupModalOverlay" onclick="closeCreateGroupModalOnOuterClick(event)">
+    <div class="create-group-modal-box" onclick="event.stopPropagation();">
+        <span class="close-modal-btn" onclick="closeCreateGroupModal()">&times;</span>
+        <h3 style="margin-top:0; margin-bottom:16px;">Create a new group</h3>
+        <form id="createGroupForm">
+            <div style="margin-bottom: 12px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:14px;">Group Name</label>
+                <input type="text" id="groupName" placeholder="Group name (e.g. CS301 Databases)" required style="width:100%; padding:8px; box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; margin-bottom:6px; font-weight:600; font-size:14px;">Description</label>
+                <textarea id="groupDescription" placeholder="What is this group for?" rows="3" style="width:100%; padding:8px; box-sizing:border-box; resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button type="button" class="btn btn-secondary" onclick="closeCreateGroupModal()" style="padding: 8px 16px;">Cancel</button>
+                <button type="submit" class="btn" style="padding: 8px 16px;">Create group</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
  
 @section('scripts')
@@ -313,10 +371,14 @@
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
     let currentTopicMessages = []; // index -> {author, content, postId, isReply, flagged}, used by Forward + Flag
-    
-    /**********adddedd**************** */
+     /**********adddedd**************** */
     let groupMembersExpanded = false;
-    let allGroupMembers = []; // cache so "show more" doesn't need another API call
+    let allGroupMembers = []; 
+
+  let browseTopicsPage = 1;
+    let browseTopicsSearch = '';
+    let browseTopicsCategory = '';
+   
 
     function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
@@ -421,7 +483,6 @@
             window.location.replace('/dashboard/admin' + window.location.search);
             return;
         }
-        document.getElementById('welcome').textContent = `Welcome, ${me.full_name}`;
     }
 
     async function loadGroups() {
@@ -460,21 +521,39 @@
         }
     }
 
-    ///////////replaced-------------------
+    // MODIFIED: layout now mirrors the student dashboard's Groups panel —
+    // a "Groups" header with a "+ Create Group" button that opens a modal,
+    // instead of an inline create-group card stacked under the list.
+  ///////////replaced-------------------
     function groupsViewHtml() {
     // 1. Generate the list of group rows
     const rows = myGroups.map(g => {
         const joined = g.is_member || g.is_group_admin;
+        const isBanned = g.is_banned || g.banned;
+
+            const clickHandler = isBanned
+            ? `alert('You are blacklisted/banned from this group.')`
+            : (joined
+                ? `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`
+                : `showNotMemberNotice(${g.group_id})`);
         return `
-            <div class="group-item" data-group-id="${g.group_id}" onclick="openGroupTopics(${g.group_id}, '${escAttr(g.name)}')">
+             <div class="group-item" data-group-id="${g.group_id}" onclick="${clickHandler}">
                 <div class="group-info">
-                    <strong>${g.name}</strong>
+                    <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
                     <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                </div>
-                ${joined
-                    ? '<span class="badge role-student">Joined</span>'
-                    : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
-                }
+                    ${!isBanned && !joined ? `
+                        <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
+                            You're not a member of this group yet — join to view topics.
+                        </div>
+                    ` : ''}
+            </div>
+                ${isBanned 
+                        ? '<span class="badge" style="background:#dc2626; color:#fff;">Banned</span>'
+                        : (joined
+                            ? '<span class="badge role-student">Joined</span>'
+                            : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
+                        )
+                    }
             </div>
         `;
     }).join('') || '<div class="empty-state">No groups exist yet.</div>';
@@ -487,100 +566,81 @@
         </div>
     `;
 
-    // 3. Create the Hidden Popup Modal
-    const modalHtml = `
-        <div id="createGroupModal" class="modal-overlay" onclick="closeCreateGroupModalOnOuterClick(event)" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-            <div class="modal-content" style="background: white; padding: 24px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: relative;" onclick="event.stopPropagation()">
-                <span class="close-modal-btn" onclick="closeCreateGroupModal()" style="position: absolute; top: 12px; right: 16px; font-size: 24px; cursor: pointer; color: #666; line-height: 1;">&times;</span>
-                <h3 style="margin-top: 0; margin-bottom: 16px;">Create a new group</h3>
-                
-                <form id="createGroupForm">
-                    <div style="margin-bottom: 12px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Group Name</label>
-                        <input type="text" id="groupName" name="name" placeholder="e.g. CS301 Databases" required style="width:100%; padding:8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
-                    </div>
-                    
-                    <div style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px;">Description</label>
-                        <textarea id="groupDescription" name="description" placeholder="What is this group for?" rows="3" style="width:100%; padding:8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; resize: vertical;"></textarea>
-                    </div>
-                    
-                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
-                        <button type="button" class="btn btn-secondary" onclick="closeCreateGroupModal()" style="background: #e5e7eb; color: #374151; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Cancel</button>
-                        <button type="submit" class="btn" style="padding: 8px 16px;">Create group</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `;
-
+    
     // 4. Assemble and return
     return `
-        <div class="groups-view-container">
-            ${headerHtml}
-            <div class="groups-list">
-                ${rows}
-            </div>
-            ${modalHtml}
+        
+    <div class="groups-view-container">
+        ${headerHtml}
+        <div class="groups-list">
+            ${rows}
         </div>
-    `;
-}
-     
+    </div>
+      `;
+    }
+
 // Opens the modal popup
-function openCreateGroupModal(event) {
-    if (event) event.stopPropagation();
-    const modal = document.getElementById('createGroupModal');
-    if (modal) {
-        modal.style.display = 'flex';
-    }
-}
 
-// Closes the modal popup and resets the form fields
-function closeCreateGroupModal() {
-    const modal = document.getElementById('createGroupModal');
-    const form = document.getElementById('createGroupForm');
-    if (modal) {
-        modal.style.display = 'none';
+    function openCreateGroupModal() {
+        const modal = document.getElementById('createGroupModalOverlay');
+        if (modal) modal.classList.add('open');
     }
-    if (form) {
-        form.reset();
-    }
-}
+    window.openCreateGroupModal = openCreateGroupModal;
 
-// Closes the modal if the user clicks outside the modal box
-function closeCreateGroupModalOnOuterClick(event) {
-    const modal = document.getElementById('createGroupModal');
-    if (event.target === modal) {
-        closeCreateGroupModal();
+    function closeCreateGroupModal() {
+        const modal = document.getElementById('createGroupModalOverlay');
+        const form = document.getElementById('createGroupForm');
+        if (modal) modal.classList.remove('open');
+        if (form) form.reset();
     }
-}
+    window.closeCreateGroupModal = closeCreateGroupModal;
 
-    /*--------------replaced------- for the topic button--------------*/
+    function closeCreateGroupModalOnOuterClick(event) {
+        if (event.target && event.target.id === 'createGroupModalOverlay') {
+            closeCreateGroupModal();
+        }
+    }
+    window.closeCreateGroupModalOnOuterClick = closeCreateGroupModalOnOuterClick;
+  /*--------------replaced------- for the topic button--------------*/
     function topicsViewHtml() {
     return `
-        <a class="back-link" onclick="browseGoBack()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-            Back to groups
-        </a>
-        <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
+        <div class="topics-head">
             <div>
-                <h3 style="margin:0;">${activeBrowseGroupName}</h3>
-                <p class="muted" style="margin:2px 0 0;">Topics in this group</p>
+                <h3>${activeBrowseGroupName}</h3>
+                <p class="muted">Topics in this group</p>
             </div>
-            <div style="display:flex; gap:8px;">
-                <button class="btn secondary" type="button" onclick="openGroupMembersModal()" title="View members" style="display:flex; align-items:center; gap:6px;">
+            <div class="topics-head-actions">
+                <button class="btn secondary" type="button" onclick="openGroupMembersModal()" title="View members" style="display:flex; align-items:center; justify-content:center; gap:6px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Members
                 </button>
                 <button class="btn" type="button" onclick="openCreateTopicModal()">+ New Topic</button>
             </div>
         </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+            <div style="position:relative; flex:1; min-width:180px;">
+                <input type="text" id="browseTopicSearch" placeholder="Search topics…" value="${escAttr(browseTopicsSearch)}"
+                    style="width:100%; padding:8px 40px 8px 8px; box-sizing:border-box;">
+                <button type="button" id="browseSearchBtn" aria-label="Search"
+                    style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; font-size:18px; padding:6px;">🔍</button>
+            </div>
+            <select id="browseCategoryFilter" style="min-width:170px; padding:8px;">
+                <option value="">All categories</option>
+            </select>
+        </div>
+
         <div id="groupTopicsList" class="muted">Loading topics…</div>
+
+        <div style="text-align:center; margin: 14px 0;">
+            <button class="btn secondary" id="browseLoadMoreBtn" type="button" style="display:none;">Load more</button>
+        </div>
 
         ${createTopicModalHtml()}
         ${groupMembersModalHtml()}
     `;
 }
-/*----------added for topic pop up modal-------*/
+ /*----------added for topic pop up modal-------*/
 function createTopicModalHtml() {
     return `
         <div id="createTopicModal" class="modal-overlay" onclick="closeCreateTopicModalOnOuterClick(event)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
@@ -602,7 +662,7 @@ function createTopicModalHtml() {
     `;
 }
 
-function groupMembersModalHtml() {
+ function groupMembersModalHtml() {
     return `
         <div id="groupMembersModal" class="modal-overlay" onclick="closeGroupMembersModalOnOuterClick(event)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
             <div class="modal-content" style="background:white; padding:24px; border-radius:8px; width:90%; max-width:420px; max-height:70vh; overflow-y:auto; box-shadow:0 4px 15px rgba(0,0,0,0.2); position:relative;" onclick="event.stopPropagation()">
@@ -613,6 +673,7 @@ function groupMembersModalHtml() {
         </div>
     `;
 }
+
 
     function postsViewHtml() {
         return `
@@ -638,13 +699,7 @@ function groupMembersModalHtml() {
         `;
     }
 
-    function openGroupTopics(groupId, groupName) {
-        const g = myGroups.find(x => x.group_id === groupId);
-        if (g && (g.is_banned || g.banned)) {
-            alert("You are blacklisted and banned from accessing this group.");
-            return;
-        }
-    function openCreateTopicModal() {
+ function openCreateTopicModal() {
     const modal = document.getElementById('createTopicModal');
     if (modal) modal.style.display = 'flex';
 }
@@ -743,7 +798,27 @@ function toggleGroupMembersExpanded() {
 }
 window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
 
+   
+    function showNotMemberNotice(groupId) {
+    // Hide any other open notices first, so only one shows at a time
+    document.querySelectorAll('[id^="notMemberNotice-"]').forEach(el => el.style.display = 'none');
+
+    const el = document.getElementById(`notMemberNotice-${groupId}`);
+    if (!el) return;
+    el.style.display = 'block';
+
+    // Auto-hide after a few seconds so it doesn't linger forever
+    clearTimeout(el._hideTimer);
+    el._hideTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+    window.showNotMemberNotice = showNotMemberNotice;
+   
     function openGroupTopics(groupId, groupName) {
+        const g = myGroups.find(x => x.group_id === groupId);
+        if (g && (g.is_banned || g.banned)) {
+            alert("You are blacklisted and banned from accessing this group.");
+            return;
+        }
         activeBrowseGroupId = groupId;
         activeBrowseGroupName = groupName;
         activeBrowseTopicId = null;
@@ -852,6 +927,7 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
         }
 
         // Ensure composer form visibility if accessible
+        const composer = document.getElementById('dashComposerForm');
         if (composer) composer.style.display = 'flex';
 
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
@@ -860,11 +936,6 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
         // Reset the lookup table that Forward/Flag use to find a message's
         // full content + id by index, without stuffing raw/quoted text into
         // onclick attrs.
-        if (!t || t.message) {
-            container.innerHTML = `<div class="muted">${(t && t.message) || 'This topic could not be loaded.'}</div>`;
-            return;
-        }
-
         currentTopicMessages = [];
 
         container.innerHTML = posts.map(p => {
@@ -1173,19 +1244,10 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
     // Delegated: the topic form and composer form are re-created whenever
     // renderGroupsBrowser() swaps views, so we listen on the always-present
     // container instead of binding directly to elements that come and go.
+    // NOTE: createGroupForm now lives inside the modal markup, outside
+    // #groupsBrowserContent, so it's bound directly below instead.
     document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
-        if (e.target && e.target.id === 'createGroupForm') {
-            e.preventDefault();
-            const nameInput = document.getElementById('groupName');
-            const descInput = document.getElementById('groupDescription');
-            await api('/groups', {
-                method: 'POST',
-                body: { name: nameInput.value, description: descInput.value },
-            });
-            nameInput.value = '';
-            descInput.value = '';
-            loadGroups();
-        } else if (e.target && e.target.id === 'newTopicFormInline') {
+        if (e.target && e.target.id === 'newTopicFormInline') {
             e.preventDefault();
             if (!activeBrowseGroupId) return;
             const input = document.getElementById('newTopicTitleInline');
@@ -1205,259 +1267,16 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
         }
     });
 
-    const toggleBtn = document.getElementById('toggleQuizFormBtn');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            const form = document.getElementById('quizConfigForm');
-            form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+    document.getElementById('createGroupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('groupName');
+        const descInput = document.getElementById('groupDescription');
+        await api('/groups', {
+            method: 'POST',
+            body: { name: nameInput.value, description: descInput.value },
         });
-    /* ---------- Post exclusion checklist ---------- */
-    async function loadGroupMembersForExclusion() {
-        const listEl = document.getElementById('dashExclusionList');
-        if (!listEl || !activeBrowseGroupId) return;
-
-        const data = await api(`/groups/${activeBrowseGroupId}/members`);
-        const members = (data && (data.data || data)) || [];
-        const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
-
-        listEl.innerHTML = members
-            .filter(m => m.user_id !== myId)
-            .map(m => `
-                <label>
-                    <input type="checkbox" value="${m.user_id}">
-                    ${m.full_name || m.name}
-                </label>
-            `).join('') || '<div class="muted" style="font-size:13px;">No other members in this group.</div>';
-    }
-    window.loadGroupMembersForExclusion = loadGroupMembersForExclusion;
-
-    function focusComposerWithMention(authorName) {
-        const textarea = document.getElementById('dashComposerInput');
-        if (!textarea) return;
-        if (!textarea.value.trim()) {
-            textarea.value = `@${authorName} `;
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight) + 'px';
-        }
-        textarea.focus();
-    }
-    window.focusComposerWithMention = focusComposerWithMention;
-
-    async function exportDashTopicPdf() {
-        if (!activeBrowseTopicId) return;
-        try {
-            const token = localStorage.getItem('sdf_token');
-            const headers = { 'Accept': 'application/pdf' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const response = await fetch(window.location.origin + `/api/topics/${activeBrowseTopicId}/export`, { method: 'GET', headers });
-            if (!response.ok) throw new Error(`Server returned status ${response.status}`);
-
-            const pdfBlob = await response.blob();
-            if (pdfBlob.size === 0) throw new Error('The server generated an empty file.');
-
-            const blobUrl = window.URL.createObjectURL(pdfBlob);
-            const link = document.createElement('a');
-            link.style.display = 'none';
-            link.href = blobUrl;
-            link.download = `topic-${activeBrowseTopicId}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            setTimeout(() => { link.remove(); window.URL.revokeObjectURL(blobUrl); }, 150);
-        } catch (err) {
-            alert(`Failed to export PDF: ${err.message}`);
-        }
-    }
-    window.exportDashTopicPdf = exportDashTopicPdf;
-
-    /* ---------- Forward & Social Share Modal Controls ---------- */
-    let forwardMessageIndex = null;
-    let forwardMode = 'internal'; // 'internal' | 'external'
-
-    function openForwardModal(msgIndex) {
-        const msg = currentTopicMessages[msgIndex];
-        if (!msg) return;
-        forwardMessageIndex = msgIndex;
-
-        document.getElementById('forwardPreview').textContent = `${msg.author}: ${msg.content}`;
-
-        setForwardMode('internal');
-
-        const groupSelect = document.getElementById('forwardGroupSelect');
-        groupSelect.innerHTML = myGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('')
-            || '<option value="">You have not joined any groups</option>';
-        groupSelect.onchange = () => populateForwardTopics(groupSelect.value);
-
-        document.getElementById('forwardModalOverlay').classList.add('open');
-
-        if (myGroups.length) {
-            populateForwardTopics(myGroups[0].group_id);
-        } else {
-            document.getElementById('forwardTopicSelect').innerHTML = '';
-        }
-    }
-    window.openForwardModal = openForwardModal;
-
-    function setForwardMode(mode) {
-        forwardMode = mode;
-        const badge = document.getElementById('modalModeBadge');
-        const tabInternal = document.getElementById('tabInternal');
-        const tabExternal = document.getElementById('tabExternal');
-        const internalFields = document.getElementById('internalForwardFields');
-        const externalFields = document.getElementById('externalForwardFields');
-
-        if (mode === 'external') {
-            badge.textContent = 'External';
-            badge.style.background = '#10b981';
-            tabExternal.className = 'btn';
-            tabExternal.style.background = '#fff';
-            tabExternal.style.color = '#000';
-            tabInternal.className = 'btn secondary';
-            tabInternal.style.background = '';
-            tabInternal.style.color = '';
-            internalFields.style.display = 'none';
-            externalFields.style.display = 'block';
-        } else {
-            badge.textContent = 'Internal';
-            badge.style.background = 'var(--accent)';
-            tabInternal.className = 'btn';
-            tabInternal.style.background = '#fff';
-            tabInternal.style.color = '#000';
-            tabExternal.className = 'btn secondary';
-            tabExternal.style.background = '';
-            tabExternal.style.color = '';
-            internalFields.style.display = 'block';
-            externalFields.style.display = 'none';
-        }
-    }
-    window.setForwardMode = setForwardMode;
-
-    async function populateForwardTopics(groupId) {
-        const topicSelect = document.getElementById('forwardTopicSelect');
-        if (!groupId) { topicSelect.innerHTML = ''; return; }
-        topicSelect.innerHTML = '<option>Loading…</option>';
-
-        const data = await api(`/groups/${groupId}/topics`);
-        const topics = (data && (data.data || data)) || [];
-        topicSelect.innerHTML = topics.map(t => `<option value="${t.topic_id}">${t.title}</option>`).join('')
-            || '<option value="">No topics in this group</option>';
-    }
-
-    function closeForwardModal() {
-        document.getElementById('forwardModalOverlay').classList.remove('open');
-        forwardMessageIndex = null;
-    }
-    window.closeForwardModal = closeForwardModal;
-
-    async function shareToPlatform(platform) {
-        if (forwardMessageIndex === null) return;
-        const msg = currentTopicMessages[forwardMessageIndex];
-
-        const postId = msg.postId || activeBrowseTopicId;
-
-        try {
-            const response = await api(`/posts/${postId}/share`, {
-                method: 'POST',
-                body: { platform: platform }
-            });
-
-            if (response && response.error) {
-                alert(response.error);
-                return;
-            }
-
-            const shareUrl = response.url;
-            const textToShare = `Check out this post on the Student Discussion Forum:\n"${msg.content.substring(0, 100)}..."\nRead more here: ${shareUrl}`;
-
-            let targetUrl = '';
-            switch(platform) {
-                case 'WhatsApp':
-                    targetUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(textToShare)}`;
-                    window.open(targetUrl, '_blank');
-                    break;
-                case 'Twitter':
-                    targetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(textToShare)}`;
-                    window.open(targetUrl, '_blank');
-                    break;
-                case 'Facebook':
-                    targetUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-                    window.open(targetUrl, '_blank');
-                    break;
-                case 'LinkedIn':
-                    targetUrl = `https://www.linkedin.com/sharing/shareArticle?mini=true&url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent('Forum Discussion')}&summary=${encodeURIComponent(textToShare)}`;
-                    window.open(targetUrl, '_blank');
-                    break;
-                case 'Clipboard':
-                default:
-                    await navigator.clipboard.writeText(textToShare);
-                    alert("Reference link & message copied to clipboard!");
-                    break;
-            }
-            closeForwardModal();
-        } catch (err) {
-            alert(`Sharing action failed: ${err.message}`);
-        }
-    }
-    window.shareToPlatform = shareToPlatform;
-
-    async function confirmForward() {
-        if (forwardMessageIndex === null) return;
-        const msg = currentTopicMessages[forwardMessageIndex];
-        const topicId = document.getElementById('forwardTopicSelect').value;
-        if (!msg || !topicId) return;
-
-        const forwardedContent = `Forwarded from ${msg.author}:\n${msg.content}`;
-        await api(`/topics/${topicId}/posts`, { method: 'POST', body: { content: forwardedContent, exclude_user_ids: [] } });
-
-        closeForwardModal();
-
-        if (activeBrowseTopicId && Number(topicId) === activeBrowseTopicId) {
-            loadBrowsePosts();
-        }
-    }
-    window.confirmForward = confirmForward;
-
-    // Delegated: the topic form and composer form are re-created whenever
-    // renderGroupsBrowser() swaps views, so we listen on the always-present
-    // container instead of binding directly to elements that come and go.
-    document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
-        if (e.target && e.target.id === 'createGroupForm') {
-            e.preventDefault();
-            const nameInput = document.getElementById('groupName');
-            const descInput = document.getElementById('groupDescription');
-            await api('/groups', {
-                method: 'POST',
-                body: { name: nameInput.value, description: descInput.value },
-            });
-            nameInput.value = '';
-            descInput.value = '';
-            loadGroups();
-             closeCreateGroupModal(); // closes modal + resets fields, only on success now
-             await loadGroups();      // re-renders groupsViewHtml, so the new group shows up below BIST/BSSE
-            ////////added----------------
-        }  else if (e.target && e.target.id === 'createTopicForm') {
-    e.preventDefault();
-    if (!activeBrowseGroupId) return;
-    const input = document.getElementById('newTopicTitleModal');
-    const response = await api(`/groups/${activeBrowseGroupId}/topics`, { method: 'POST', body: { title: input.value } });
-    if (response && response.message && !response.topic_id) {
-        alert(response.message);
-        return;
-    }
-    closeCreateTopicModal();
-    loadBrowseTopics(); // refreshes groupTopicsList so the new topic shows up under "web"
-
-        } else if (e.target && e.target.id === 'dashComposerForm') {
-            e.preventDefault();
-            if (!activeBrowseTopicId) return;
-            const textarea = document.getElementById('dashComposerInput');
-            const excludeIds = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'))
-                .map(cb => Number(cb.value));
-            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: excludeIds } });
-            textarea.value = '';
-            textarea.style.height = 'auto';
-            loadBrowsePosts();
-        }
+        closeCreateGroupModal();
+        loadGroups();
     });
 
     const toggleBtn = document.getElementById('toggleQuizFormBtn');
@@ -1752,13 +1571,51 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
         }
     });
  
-    async function loadNotifications() {
-        const data = await api('/notifications');
-        const notifications = (data && (data.data || data)) || [];
-        document.getElementById('notifications').innerHTML = notifications.map(n => `
-            <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
-        `).join('') || '<div class="empty-state">No notifications yet.</div>';
-    }
+   let currentNotifications = [];
+
+async function loadNotifications() {
+    const data = await api('/notifications');
+    currentNotifications = (data && (data.data || data)) || [];
+    renderNotifications();
+}
+
+function renderNotifications() {
+    document.getElementById('notifications').innerHTML = currentNotifications.map((n, i) => {
+        const meta = notifIconMeta(n.type);
+        return `
+            <div class="notif-card${!n.is_read ? ' unread' : ''}" onclick="markOneNotificationRead(${i})">
+                <div class="notif-icon ${meta.cls}">${meta.icon}</div>
+                <div class="notif-body">
+                    <div class="notif-title">${n.type}</div>
+                    <div class="notif-message">${n.message}</div>
+                    <div class="notif-time">${relativeTime(n.created_at)}</div>
+                </div>
+                ${!n.is_read ? '<span class="notif-dot"></span>' : ''}
+            </div>
+        `;
+    }).join('') || '<div class="empty-state">No notifications yet.</div>';
+}
+
+async function markOneNotificationRead(index) {
+    const n = currentNotifications[index];
+    if (!n || n.is_read) return;
+    await api(`/notifications/${n.notification_id}/read`, { method: 'PATCH', body: {} });
+    n.is_read = true;
+    renderNotifications();
+    refreshNotifBadge();
+}
+window.markOneNotificationRead = markOneNotificationRead;
+
+window.prependLiveNotification = function (e) {
+    currentNotifications.unshift({
+        notification_id: e.notification_id,
+        type: e.type,
+        message: e.message,
+        created_at: e.created_at,
+        is_read: false,
+    });
+    renderNotifications();
+};
  
     async function init() {
         initDashSidebar(document, 'panel-groups');

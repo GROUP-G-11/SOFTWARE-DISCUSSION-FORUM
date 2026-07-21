@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Api\Concerns\TracksParticipation;
 use App\Http\Controllers\Api\Concerns\HandlesFlagAutoBlacklist;
 use App\Jobs\GenerateUserRecommendations;
+use App\Models\GroupAdmin;
 use App\Models\Post;
 use App\Models\PostExclusion;
 use App\Models\Topic;
@@ -13,6 +14,7 @@ use App\Models\User;
 use App\Services\NotificationService;
 use App\Events\MessageBroadcast;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Managing discussion posts use case (SDD Table 36) + Selective Communication
@@ -21,8 +23,7 @@ use Illuminate\Http\Request;
  */
 class PostController extends Controller
 {
-    use TracksParticipation;
-    use HandlesFlagAutoBlacklist;
+    use TracksParticipation, HandlesFlagAutoBlacklist;
 
     public function __construct(private NotificationService $notifications)
     {
@@ -65,13 +66,6 @@ class PostController extends Controller
             'posted_at' => now(),
         ]);
         $post->load('author');
-        broadcast(new MessageBroadcast($post, $post->topic_id));
-
-//broadcast(new MessageBroadcast($post))->toOthers();
-
-        // RIGHT: Pass only the $post model instance
-        // event(new MessageBroadcast($post));
-        //event(new MessageBroadcast($topic->topic_id, 'post', $post->load('author')->toArray()));
 
         foreach ($request->input('exclude_user_ids', []) as $excludedUserId) {
             PostExclusion::create(['post_id' => $post->post_id, 'excluded_user_id' => $excludedUserId]);
@@ -86,7 +80,21 @@ class PostController extends Controller
 
         // Notify the topic creator (and, in a fuller implementation, every
         // non-excluded group member) of the new post.
-        if ($topic->created_by !== $author->user_id) {
+        $excludedIds = $request->input('exclude_user_ids', []);
+
+$recipients = $topic->group->members()
+    ->where('users.user_id', '!=', $author->user_id)
+    ->whereNotIn('users.user_id', $excludedIds)
+    ->get();
+
+$this->notifications->sendToMany(
+    $recipients,
+    'New Post',
+    "{$author->full_name} posted in '{$topic->title}'.",
+    'Post',
+    $post->post_id
+);
+       /* if ($topic->created_by !== $author->user_id) {
             $this->notifications->send(
                 $topic->creator,
                 'New Post',
@@ -94,55 +102,116 @@ class PostController extends Controller
                 'Post',
                 $post->post_id
             );
+        }*/
+
+        // Real-time push is a nice-to-have on top of the post/exclusions
+        // above, which are already safely saved by this point either way.
+        // It must not be able to take the whole request down when Reverb
+        // isn't running (e.g. local dev with Reverb off, or a network
+        // blip) - broadcast() with QUEUE_CONNECTION=sync talks to Reverb
+        // synchronously right here, so a connection failure needs to be
+        // swallowed rather than bubbling up and aborting everything above.
+        try {
+            broadcast(new MessageBroadcast($post, $post->topic_id));
+        } catch (\Throwable $e) {
+            report($e);
         }
 
         return response()->json($post->load('author'), 201);
     }
 
-    /** Content moderation: flag a post as irrelevant/spam (SDD Table 31). */
+    /**
+     * Server-side authorization for flag(): mirrors StatisticsController's
+     * authorizeGroupAccess() pattern and the lecturer dashboard's
+     * canFlagInGroup() client-side guard, which this endpoint must enforce
+     * for real — an Administrator, OR a Lecturer who belongs to the group
+     * (owner, active group admin, or plain member), OR a student who is an
+     * active GroupAdmin for the group, may flag content in it.
+     */
+    private function authorizeFlag(User $user, int $groupId): bool
+    {
+        if ($user->hasRole('Administrator')) {
+            return true;
+        }
+
+        if ($user->hasRole('Lecturer') && $user->isMemberOf($groupId)) {
+            return true;
+        }
+
+        return GroupAdmin::where('group_id', $groupId)
+            ->where('user_id', $user->user_id)
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    /** Content moderation: flag (or unflag) a post as irrelevant/spam (SDD Table 31). */
     public function flag(Request $request, Post $post)
     {
-        $post->update(['is_flagged' => true]);
+        $request->validate(['flagged' => 'nullable|boolean']);
 
         $flagger = $request->user();
+        $post->loadMissing('topic');
+        $groupId = $post->topic->group_id ?? null;
+
+        if (! $groupId || ! $this->authorizeFlag($flagger, $groupId)) {
+            return response()->json([
+                'message' => 'Access denied. You must be an Administrator, a Lecturer in this group, or an active group admin to flag content here.',
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        $flagged = $request->boolean('flagged', true);
+        $post->update(['is_flagged' => $flagged]);
+
         $topicTitle = $post->topic->title ?? 'a topic';
+        $responseMessage = $flagged ? 'Post flagged for moderation.' : 'Flag removed from post.';
+        
 
-        // ADDED: flagging previously updated the row silently — no one was
-        // ever told. Every Administrator now gets a notification so it
-        // actually surfaces (e.g. on the admin dashboard's Flagged Content
-        // list), matching the same NotificationService->send() pattern
-        // store() already uses for new-post notifications.
-        // FIXED: the notifications.type column is a strict MySQL ENUM
-        // ('Quiz Announcement', 'Warning', 'Blacklist', 'New Post', 'Reply',
-        // 'General') — see 2024_01_01_000014_create_notifications_table.php.
-        // 'Post Flagged' was never a valid enum value, so every insert threw
-        // PDOException 1265 ("Data truncated for column 'type'") and this
-        // whole endpoint 500'd. Reusing 'General' avoids an ENUM schema
-        // migration; the actual Post/Reply distinction already lives in
-        // related_type (a plain string column, no enum), and the message
-        // text still says "flagged" for the admin dashboard's filter.
-        User::whereHas('roles', fn ($q) => $q->where('role_name', 'Administrator'))
-            ->get()
-            ->each(function (User $admin) use ($flagger, $post, $topicTitle) {
-                $this->notifications->send(
-                    $admin,
-                    'General',
-                    "{$flagger->full_name} flagged a post in '{$topicTitle}' for moderation.",
-                    'Post',
-                    $post->post_id
-                );
-            });
+        $this->notifications->send(
+    $post->author,
+    'General',
+    "Your post in '{$topicTitle}' was flagged for review by {$flagger->full_name}.",
+    'Post',
+    $post->post_id
+);
 
-        // ADDED: content-moderation escalation (SDD 5.2) — once this
-        // author's currently-flagged posts+replies in this group reach the
-        // threshold, they're automatically blacklisted for the group's
-        // configured duration and notified. See HandlesFlagAutoBlacklist
-        // for the full rationale; access denial and the automatic lift once
-        // the suspension ends are both already handled by the existing
-        // Blacklist.end_date check in User::isBlacklistedIn().
-        $this->autoBlacklistIfFlaggedTooMuch($post->author, $post->topic->group_id ?? null, $this->notifications);
+        if ($flagged) {
+            // ADDED: flagging previously updated the row silently — no one was
+            // ever told. Every Administrator now gets a notification so it
+            // actually surfaces (e.g. on the admin dashboard's Inactivity
+            // Warnings and Flags list), matching the same
+            // NotificationService->send() pattern store() already uses for
+            // new-post notifications.
+            //
+            // NOTE: notifications.type is a strict DB enum (Quiz
+            // Announcement, Warning, Blacklist, New Post, Reply, General)
+            // that does NOT include 'Post Flagged' — using it throws a
+            // QueryException ("Data truncated for column 'type'"). 'General'
+            // is used instead; the admin dashboard already detects flag
+            // notifications by scanning the message text, not the type.
+            User::whereHas('roles', fn ($q) => $q->where('role_name', 'Administrator'))
+                ->get()
+                ->each(function (User $admin) use ($flagger, $post, $topicTitle) {
+                    $this->notifications->send(
+                        $admin,
+                        'General',
+                        "{$flagger->full_name} flagged a post in '{$topicTitle}' for moderation.",
+                        'Post',
+                        $post->post_id
+                    );
+                });
 
-        return response()->json(['message' => 'Post flagged for moderation.', 'post' => $post]);
+            // Auto-blacklist a member once their flagged content in this
+            // group crosses the threshold (see HandlesFlagAutoBlacklist).
+            // This trait already existed but was never actually called.
+            $author = $post->author;
+            $blacklistedBefore = $author ? $author->isBlacklistedIn($groupId) : false;
+            $this->autoBlacklistIfFlaggedTooMuch($author, $groupId, $this->notifications);
+            if ($author && ! $blacklistedBefore && $author->isBlacklistedIn($groupId)) {
+                $responseMessage = 'Post flagged for moderation. The author has been automatically blacklisted from this group after repeated flags.';
+            }
+        }
+
+        return response()->json(['message' => $responseMessage, 'post' => $post]);
     }
 
     public function destroy(Post $post)

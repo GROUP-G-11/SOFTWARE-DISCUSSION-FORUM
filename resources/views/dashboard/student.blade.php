@@ -29,7 +29,7 @@
         display: flex; align-items: center; justify-content: space-between; gap: 10px;
         padding: 12px 4px; border-bottom: 1px solid var(--line); cursor: pointer;
     }
-    .group-item:last-child, .topic-item:last-child { border-bottom: none; }
+    .group-entry:last-child .group-item { border-bottom: none; }
     .group-item:hover, .topic-item:hover { background: #eef2f1; }
     .group-item .group-info, .topic-item .group-info { min-width: 0; }
     .group-item .group-info strong, .topic-item strong { display: block; font-size: 15px; }
@@ -40,6 +40,24 @@
     }
     .group-item .join-btn:hover { background: var(--accent-dark); }
 
+    /* ---------- Group members toggle ---------- */
+    .group-entry { border-bottom: 1px solid var(--line); }
+    .group-entry:last-child { border-bottom: none; }
+    .group-entry .group-item { border-bottom: none; }
+    .members-toggle-row { padding: 0 4px 10px; }
+    .members-toggle-row .members-toggle-link {
+        color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
+    }
+    .members-toggle-row .members-toggle-link:hover { text-decoration: underline; }
+    .member-names {
+        display: none; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .member-names.open { display: flex; }
+    .member-chip {
+        background: #eef2f1; color: #374151; font-size: 12px; font-weight: 500;
+        padding: 4px 10px; border-radius: 12px;
+    }
+ 
     /* Chat thread + composer, reused from the standalone topic page so the
        inline preview here looks/feels the same. No fixed height/scrolling —
        it simply grows with the conversation. */
@@ -54,7 +72,7 @@
     /* Reply thread: a connecting guide line + indent applied straight to the
        message itself (one modifier class) instead of an extra wrapper div. */
     .msg-group.is-reply { margin-left: 26px; max-width: calc(78% - 26px); padding-left: 14px; border-left: 2px solid var(--line); }
-
+    
     /* Flagged post highlight */
     .msg-group.is-flagged .bubble { outline: 2px solid #dc2626; outline-offset: 2px; }
  
@@ -79,7 +97,6 @@
     .msg-actions .flag-link { color: #dc2626; cursor: pointer; }
     .msg-actions .flag-link:hover { text-decoration: underline; }
     .msg-actions .flag-link.flagged { font-weight: 700; }
- 
 
     .composer {
         display: flex; align-items: flex-end; gap: 8px; margin-top: 14px;
@@ -94,11 +111,32 @@
         width: 38px; height: 38px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
     .composer-send svg { width: 18px; height: 18px; }
+    
+     /* Inline "View statistics" shortcut shown to group admins in the topics/posts drill-down */
+    .stats-shortcut {     padding: 5px 12px; font-size: 12.5px;    }
 
-    /* Inline "View statistics" shortcut shown to group admins in the topics/posts drill-down */
-    .stats-shortcut {
-        padding: 5px 12px; font-size: 12.5px;
+
+    /* ---------- Exclude-from-post checklist ---------- */
+    .exclusion-wrap { margin-top: 14px; }
+    .exclusion-wrap .exclusion-label { font-size: 13px; font-weight: 600; color: var(--slate); display: block; margin-bottom: 6px; }
+    #dashExclusionList {
+        border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+        max-height: 140px; overflow-y: auto; background: #fff;
+        display: flex; flex-direction: column; gap: 2px;
     }
+    #dashExclusionList label {
+        display: flex; align-items: center; justify-content: flex-start !important;
+        gap: 8px; font-size: 14px; cursor: pointer; padding: 6px 2px; width: 100%;
+    }
+    #dashExclusionList input[type="checkbox"] { flex-shrink: 0; margin: 0; width: 15px; height: 15px; }
+    #dashExclusionList .exclusion-name { flex: 1; text-align: left; white-space: normal; }
+
+    /* ---------- Icon-only download button ---------- */
+    .icon-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 34px; height: 34px; padding: 0; border-radius: 8px;
+    }
+    .icon-btn svg { width: 17px; height: 17px; }
  
     /* ---------- Forward message modal ---------- */
     .modal-overlay {
@@ -117,10 +155,35 @@
     .modal-box select {
         width: 100%; padding: 7px; border: 1px solid var(--line); border-radius: 6px; font-family: inherit;
     }
-</style>
 
-<div class="eyebrow">Student Dashboard</div>
-<h1 id="welcome">Loading your dashboard…</h1>
+    /* ================= MOBILE (phone) OVERRIDES =================
+       Scoped to <=640px only, so desktop/tablet layout above is 100%
+       untouched. Mirrors the phone mockup: stacked headers with
+       full-width buttons, wider chat bubbles, tighter chrome. */
+    .groups-header {    display: flex;    align-items: center;    justify-content: space-between;
+    flex-wrap: wrap;    gap: 12px;    margin-bottom: 16px; }
+    .topics-head {display: flex;   align-items: center;    justify-content: space-between;
+       flex-wrap: wrap;    gap: 12px;    margin-bottom: 14px;}
+      .topics-head-actions {
+       display: flex;    gap: 8px;    flex-shrink: 0;    flex-wrap: wrap;    align-items: center;}
+    @media (max-width: 640px) {
+        .groups-header { flex-direction: column; align-items: stretch; gap: 10px; }
+        .groups-header .btn { width: 100%; }
+        
+
+        .topics-head { flex-direction: column; align-items: stretch; gap: 10px; }
+        .topics-head-actions { width: 100%; }
+        .topics-head-actions .btn { flex: 1; }
+
+        .msg-group { max-width: 90%; }
+        .msg-group.is-reply { margin-left: 14px; max-width: calc(90% - 14px); padding-left: 10px; }
+
+        .chat-thread { padding: 12px; min-height: 200px; }
+        .composer { padding: 6px 6px 6px 12px; }
+
+        .back-link { font-size: 12.5px; padding: 6px 10px; }
+    }
+</style>
 
 <div class="dash-shell">
     <div class="dash-main">
@@ -136,7 +199,7 @@
 
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
-            <!--removed dash panel-->            
+            
 
             <!-- Single drill-down view: groupsBrowserContent's innerHTML is
                  fully swapped by JS between the groups list, a group's
@@ -160,7 +223,7 @@
 
         <!-- ================= RECOMMENDATIONS ================= -->
         <div class="dash-panel" id="panel-recommendations">
-            <div class="section-title"><h2 style="margin:0;">Recommended Topics</h2></div>
+            <div class="section-title"><h2 style="margin:0;">Trending Topics</h2></div>
             <div id="recommendations" class="card muted">Loading recommendations…</div>
         </div>
 
@@ -244,7 +307,6 @@
             window.location.replace((window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin' : '/dashboard/lecturer') + window.location.search);
             return;
         }
-        document.getElementById('welcome').textContent = `Welcome, ${me.full_name}`;
     }
 
     /* ---------- Groups panel: single drill-down view ---------- */
@@ -253,9 +315,9 @@
     let activeBrowseGroupName = '';
     let activeBrowseTopicId = null;
     let activeBrowseTopicTitle = '';
-    let currentTopicMessages = []; // index -> {author, content, postId, flagged}, used by Forward + Flag
-    
-    //// added------------------
+    let currentTopicMessages = []; // index -> {author, content, postId, isReply, flagged}, used by Forward + Flag
+
+     //// added------------------
     let groupMembersExpanded = false;
     let allGroupMembers = []; // cache so "show more" doesn't need another API call
 
@@ -269,28 +331,27 @@
         return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    // Group-admin check: is the current user the admin of the given group?
-    // Used to gate both the inline "View statistics" shortcut and the
-    // "Flag" action on posts/replies within that group's topics.
-    function isGroupAdmin(groupId) {
-        if (!groupId || !window.CURRENT_USER) return false;
-        const g = myGroups.find(x => x.group_id === groupId);
-        return !!(g && g.admin_id === window.CURRENT_USER.user_id);
-    }
-    window.isGroupAdmin = isGroupAdmin;
-
     /* ---------- Live WebSockets Subscription (Laravel Echo) ---------- */
     window.currentSubscriptionId = null;
+    window._echoWaitAttempts = 0;
 
     window.subscribeToTopic = function (topicId) {
         if (!topicId) return;
 
-        // 1. Wait for Laravel Echo to finish loading if it's slow
+        // 1. Wait for Laravel Echo to finish loading if it's slow. Capped at
+        // 20 attempts (10s) so a genuinely missing/misconfigured Echo setup
+        // fails quietly instead of retrying - and logging a warning - forever.
         if (typeof window.Echo === 'undefined') {
+            window._echoWaitAttempts++;
+            if (window._echoWaitAttempts > 20) {
+                console.warn("Laravel Echo never loaded after 10s - giving up on live updates for this topic. Check your Echo/Reverb setup.");
+                return;
+            }
             console.warn("Laravel Echo is not loaded yet! Retrying in 500ms...");
             setTimeout(() => window.subscribeToTopic(topicId), 500);
             return;
         }
+        window._echoWaitAttempts = 0;
 
         // 2. Prevent duplicate subscriptions to the same topic
         if (window.currentSubscriptionId === topicId) {
@@ -337,12 +398,23 @@
                 }
 
                 const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
+
+                // Selective communication: if the backend includes the list of
+                // excluded user ids on the broadcast payload, don't render the
+                // post for anyone in it. This only works once the backend
+                // sends this field on the event - see note in code review.
+                const excludedIds = (e.excluded_user_ids || e.reply?.excluded_user_ids || []).map(Number);
+                if (myId !== null && excludedIds.includes(Number(myId))) return;
+
                 const mine = e.reply.author_id === myId;
                 const side = mine ? 'mine' : 'theirs';
                 const authorName = e.reply.author ? (e.reply.author.full_name || e.reply.author.name) : 'User';
                 const timeStr = timeOnly(e.reply.posted_at || e.reply.created_at);
 
-                // Build the post HTML markup matching your structure exactly
+                // Build the post HTML markup matching your structure exactly.
+                // Pass through the post/reply id + moderation flag so live
+                // posts get the same Flag control and highlight as posts
+                // loaded from the initial fetch.
                 const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged);
 
                 // Append the live message to the chat view container
@@ -352,8 +424,9 @@
             .error((error) => {
                 console.error("Presence channel subscription error:", error);
             });
-            
-    };//////////////added
+    };
+
+    //////////////added
     document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded. Checking for Laravel Echo...");
     
@@ -365,11 +438,23 @@
         console.log("No active topic selected yet. Waiting for user interaction.");
     }
 });
- 
-    function escAttr(str) {
+ function escAttr(str) {
         return (str || '').replace(/'/g, "\\'");
     }
 
+    // Group-admin check: is the current user the admin of the given group?
+    // Used to gate both the inline "View statistics" shortcut and the
+    // "Flag" action on posts/replies within that group's topics. Matches
+    // admin_id the same way renderGroupAdminPanel() does below, rather than
+    // relying on a separate (and unreliable) is_group_admin flag.
+    function isGroupAdmin(groupId) {
+        if (!groupId || !window.CURRENT_USER) return false;
+        const g = myGroups.find(x => x.group_id === groupId);
+        return !!(g && g.admin_id === window.CURRENT_USER.user_id);
+    }
+    window.isGroupAdmin = isGroupAdmin;
+
+   
     async function loadGroups() {
         const data = await api('/groups');
         const groups = (data && (data.data || data)) || [];
@@ -377,6 +462,7 @@
         renderGroupAdminPanel(groups);
         renderGroupsBrowser();
     }
+  
 
     // Swaps the ONE content div's innerHTML based on browseView, instead of
     // keeping separate group/topic/post divs all in the DOM at once.
@@ -389,45 +475,48 @@
         } else if (browseView === 'posts') {
             el.innerHTML = postsViewHtml();
             loadBrowsePosts();
+            loadGroupMembersForExclusion();
         } else {
             el.innerHTML = groupsViewHtml();
         }
     }
-    
-    ///////////replaced-------------------
+
     function groupsViewHtml() {
         const rows = myGroups.map(g => {
             const joined = g.is_member || g.is_group_admin;
             const isBanned = g.is_banned || g.banned;
+
+            const clickHandler = isBanned
+            ? `alert('You are blacklisted/banned from this group.')`
+            : (joined
+                ? `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`
+                : `showNotMemberNotice(${g.group_id})`);
             return `
-                <div class="group-item" data-group-id="${g.group_id}" onclick="${isBanned ? `alert('You are blacklisted/banned from this group.')` : `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')`}">
-                onclick="${joined ? `openGroupTopics(${g.group_id}, '${escAttr(g.name)}')` : `showNotMemberNotice(${g.group_id})`}">
-                    <div class="group-info">
-                        <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
-                        <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                        <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
-                        You're not a member of this group yet — join to view topics.
-                    </div>
-                    ${isBanned 
-                        ? '<span class="badge" style="background:#dc2626; color:#fff;">Banned</span>'
-                        : (joined
+                <div class="group-entry">
+                    <div class="group-item" data-group-id="${g.group_id}" onclick="${clickHandler}">
+                        <div class="group-info">
+                            <strong>${g.name}${isBanned ? ' <span class="badge" style="background:#dc2626; color:#fff; margin-left:6px; font-size:11px;">Banned</span>' : ''}</strong>
+                            <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
+                            ${!isBanned && !joined ? `
+                                <div class="muted" id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:2px;">
+                                    You're not a member of this group yet — join to view topics.
+                                </div>
+                            ` : ''}
+                        </div>
+                        ${joined
                             ? '<span class="badge role-student">Joined</span>'
                             : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
-                        )
-                    }
+                        }
+                    </div>
+                   
                 </div>
-                ${joined
-                    ? '<span class="badge role-student">Joined</span>'
-                    : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
-                }
-            </div>
         `;
     }).join('') || '<div class="empty-state">No groups exist yet.</div>';
-    
+
     // 2. Create the Top Header with the trigger button
     const headerHtml = `
-        <div class="groups-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2 style="margin: 0;">Groups</h2>
+        <div class="groups-header">
+            <h2>Groups</h2>
             <button class="btn" type="button" onclick="openCreateGroupModal(event)">+ Create Group</button>
         </div>
     `;
@@ -506,27 +595,28 @@ function closeCreateGroupModalOnOuterClick(event) {
     function topicsViewHtml() {
         // Group admins get a quick shortcut straight to their group statistics
         // page without having to leave the drill-down view (the full stats
-        // link still also lives in the "Group Admin" sidebar panel).
+        // link still also lives in the "Group Admin" sidebar panel). It now
+        // lives inline with the Members / New Topic actions (last in the
+        // row) instead of a separate floated line, and uses the same
+        // "btn secondary" sizing as the other action buttons.
         const statsShortcut = isGroupAdmin(activeBrowseGroupId)
-            ? `<a class="btn secondary stats-shortcut" style="float:right;" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
+            ? `<a class="btn secondary" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
             : '';
             /* removed back to groups and added create topic, searching , filtering */
-        return `
-            ${statsShortcut}
-            <h3 style="margin: 12px 0 2px;">${activeBrowseGroupName}</h3>
-            <p class="muted" style="margin: 0 0 14px;">Topics in this group</p>
-        
-        <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
+    return `
+          ${statsShortcut}
+        <div class="topics-head">
             <div>
-                <h3 style="margin:0;">${activeBrowseGroupName}</h3>
-                <p class="muted" style="margin:2px 0 0;">Topics in this group</p>
+                <h3>${activeBrowseGroupName}</h3>
+                <p class="muted">Topics in this group</p>
             </div>
-            <div style="display:flex; gap:8px;">
-                <button class="btn secondary" type="button" onclick="openGroupMembersModal()" title="View members" style="display:flex; align-items:center; gap:6px;">
+            <div class="topics-head-actions">
+                <button class="btn secondary" type="button" onclick="openGroupMembersModal()" title="View members" style="display:flex; align-items:center; justify-content:center; gap:6px;">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                     Members
                 </button>
                 <button class="btn" type="button" onclick="openCreateTopicModal()">+ New Topic</button>
+                ${statsShortcut}
             </div>
         </div>
 
@@ -554,21 +644,21 @@ function closeCreateGroupModalOnOuterClick(event) {
 }
  
     function postsViewHtml() {
-        const statsShortcut = isGroupAdmin(activeBrowseGroupId)
-            ? `<a class="btn secondary stats-shortcut" href="/groups/${activeBrowseGroupId}/statistics">Statistics</a>`
-            : '';
         return `
             <a class="back-link" onclick="browseGoBack()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
                 Back to topics
             </a>
             <div style="display:flex; align-items:center; justify-content:space-between; margin: 12px 0 14px;">
                 <h3 style="margin:0;">${activeBrowseTopicTitle}</h3>
-                <div style="display:flex; gap:8px;">
-                    ${statsShortcut}
-                    <button class="btn secondary" type="button" onclick="exportDashTopicPdf()">PDF</button>
-                </div>
+                <button class="btn secondary icon-btn" type="button" onclick="exportDashTopicPdf()" title="Download as PDF" aria-label="Download as PDF">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
             </div>
             <div class="chat-thread" id="dashPosts"><div class="muted">Loading messages…</div></div>
+            <div class="exclusion-wrap">
+                <span class="exclusion-label">Exclude these members from seeing your next post</span>
+                <div id="dashExclusionList">Loading members…</div>
+            </div>
             <form class="composer" id="dashComposerForm">
                 <textarea id="dashComposerInput" rows="1" placeholder="Type a message…" required
                     oninput="this.style.height='auto'; this.style.height=(this.scrollHeight)+'px';"></textarea>
@@ -599,7 +689,7 @@ function closeCreateGroupModalOnOuterClick(event) {
         </div>
     `;
 }
-/*------------------------ added---------------------------------*/
+/*---------------------------------------------------------*/
 function groupMembersModalHtml() {
     return `
         <div id="groupMembersModal" class="modal-overlay" onclick="closeGroupMembersModalOnOuterClick(event)" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
@@ -659,13 +749,21 @@ async function loadGroupMembers() {
 
     const data = await api(`/groups/${activeBrowseGroupId}/members`);
     allGroupMembers = (data && (data.data || data)) || [];
-    groupMembersExpanded = false; // always start collapsed when modal opens
+     groupMembersExpanded = false; // always start collapsed when modal opens
 
+
+    listEl.innerHTML = allGroupMembers.map(m => `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);">
+            <strong>${m.full_name || m.name}</strong>
+            ${m.is_admin ? '<span class="badge" style="background:var(--accent); color:#fff; font-size:11px;">Admin</span>' : ''}
+        </div>
+    `).join('') || '<div class="empty-state">No members yet.</div>';
+    
     renderGroupMembersList();
 }
 window.loadGroupMembers = loadGroupMembers;
 
-function renderGroupMembersList() {
+    function renderGroupMembersList() {
     const listEl = document.getElementById('groupMembersList');
     if (!listEl) return;
 
@@ -709,19 +807,14 @@ function toggleGroupMembersExpanded() {
 }
 window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
 
+
     function openGroupTopics(groupId, groupName) {
+
         const g = myGroups.find(x => x.group_id === groupId);
         if (g && (g.is_banned || g.banned)) {
             alert("You are blacklisted and banned from accessing this group.");
             return;
         }
-        //////////////added---------------
-        const group = myGroups.find(g => g.group_id === groupId);
-    const joined = group && (group.is_member || group.is_group_admin);
-    if (!joined) {
-        alert('Join this group first to view its topics.');
-        return;
-    }
         activeBrowseGroupId = groupId;
         activeBrowseGroupName = groupName;
         activeBrowseTopicId = null;
@@ -735,7 +828,7 @@ window.toggleGroupMembersExpanded = toggleGroupMembersExpanded;
     }
     window.openGroupTopics = openGroupTopics;
 
-    /////////added------------
+     /////////added------------
     function showNotMemberNotice(groupId) {
     // Hide any other open notices first, so only one shows at a time
     document.querySelectorAll('[id^="notMemberNotice-"]').forEach(el => el.style.display = 'none');
@@ -756,8 +849,8 @@ window.showNotMemberNotice = showNotMemberNotice;
         browseView = 'posts';
         renderGroupsBrowser();
         if (typeof window.subscribeToTopic === 'function') {
-            window.subscribeToTopic(topicId); // Explicitly pass the topic ID to subscribe!
-        }
+        window.subscribeToTopic(topicId); // Explicitly pass the topic ID to subscribe!
+    }
     }
     window.openTopicPosts = openTopicPosts;
 
@@ -810,7 +903,7 @@ window.showNotMemberNotice = showNotMemberNotice;
     }
     window.toggleGroupMembers = toggleGroupMembers;
 
- 
+
     async function joinGroupInline(event, groupId) {
         event.stopPropagation();
         const ok = window.confirm('By joining, you agree to the group rules (see /group-rules). Continue?');
@@ -835,12 +928,20 @@ window.showNotMemberNotice = showNotMemberNotice;
         if (tab) tab.style.display = adminGroups.length ? 'flex' : 'none';
 
         document.getElementById('groupAdminList').innerHTML = adminGroups.map(g => `
-            <div class="card">
-                <strong>${g.name}</strong>
+           <div class="card" style="display: flex; justify-content: space-between; align-items: center; padding: 16px;">
+            
+            <!-- Left Side: Group Info Text -->
+            <div>
+                <strong style="font-size: 16px; display: block; margin-bottom: 4px;">${g.name}</strong>
                 <div class="muted">${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics</div>
-                <div style="margin-top: 8px; display:flex; gap:8px;">
-                    <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 4px 10px; font-size: 13px;">View group statistics</a>
-                </div>
+            </div>
+            
+            <!-- Right Side: Button -->
+            <div style="display: flex; gap: 8px;">
+                <a class="btn btn-secondary" href="/groups/${g.group_id}/statistics" style="padding: 6px 12px; font-size: 13px; white-space: nowrap;">
+                    View group statistics
+                </a>
+            </div>
             </div>
         `).join('');
     }
@@ -851,20 +952,6 @@ window.showNotMemberNotice = showNotMemberNotice;
         if (!activeBrowseGroupId) return;
         const listEl = document.getElementById('groupTopicsList');
         if (!listEl) return;
- 
-        const data = await api(`/groups/${activeBrowseGroupId}/topics`);
-        
-        // Block access dynamically if API returns ban restrictions
-        if (data && (data.error || data.message) && (data.error?.toLowerCase().includes('ban') || data.message?.toLowerCase().includes('ban') || data.error?.toLowerCase().includes('blacklist') || data.message?.toLowerCase().includes('blacklist'))) {
-            listEl.innerHTML = `<div class="empty-state" style="color: #dc2626; font-weight: bold;">${data.error || data.message}</div>`;
-            const form = document.getElementById('newTopicFormInline');
-            if (form) form.style.display = 'none';
-            return;
-        }
-
-        const topics = (data && (data.data || data)) || [];
- 
-        listEl.innerHTML = topics.map(t => `
 
         if (reset) {
             browseTopicsPage = 1;
@@ -876,6 +963,17 @@ window.showNotMemberNotice = showNotMemberNotice;
         if (browseTopicsCategory) params.set('category', browseTopicsCategory);
 
         const data = await api(`/groups/${activeBrowseGroupId}/topics?${params.toString()}`);
+
+        const errMsg = data && (data.error || data.message);
+        const isBanMsg = errMsg && (
+        errMsg.toLowerCase().includes('ban') || errMsg.toLowerCase().includes('blacklist')
+    );
+    if (isBanMsg) {
+        listEl.innerHTML = `<div class="empty-state" style="color:#dc2626; font-weight:bold;">${errMsg}</div>`;
+        const moreBtn = document.getElementById('browseLoadMoreBtn');
+        if (moreBtn) moreBtn.style.display = 'none';
+        return;
+    }
         const items = (data && (data.data || data)) || [];
 
         const rowsHtml = items.map(t => `
@@ -926,17 +1024,14 @@ window.showNotMemberNotice = showNotMemberNotice;
 
         // Ensure composer form visibility if accessible
         const composer = document.getElementById('dashComposerForm');
-        if (composer) composer.style.display = 'flex';
- 
+        //if (composer) composer.style.display = 'flex';
+
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
         const posts = t.posts || [];
- 
+
         // Reset the lookup table that Forward/Flag use to find a message's
         // full content + id by index, without stuffing raw/quoted text into
         // onclick attrs.
-        
-        // Reset the lookup table that Forward uses to find a message's full
-        // content by index, without stuffing raw/quoted text into onclick attrs.
         currentTopicMessages = [];
 
         container.innerHTML = posts.map(p => {
@@ -951,19 +1046,18 @@ window.showNotMemberNotice = showNotMemberNotice;
                 return renderMsgGroup(replySide, replyAuthorName, r.content, timeOnly(r.replied_at || r.created_at), true, r.reply_id ?? r.post_id, r.is_flagged);
             }).join('');
 
-            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false) + repliesHtml;
+            return renderMsgGroup(side, authorName, p.content, timeOnly(p.posted_at || p.created_at), false, p.post_id, p.is_flagged) + repliesHtml;
         }).join('') || '<div class="muted">No messages yet in this topic — start the discussion below.</div>';
 
         container.scrollTop = container.scrollHeight;
     }
- 
+
     // One bubble + its Reply/Forward/Flag/timestamp row. `isReply` adds the
     // connecting-line modifier class AND tells flagPost() which endpoint to
-    // call (MODIFIED — this used to only affect styling; see flagPost
-    // below). `postId` is the post/reply's database id (used by Forward's
+    // call. `postId` is the post/reply's database id (used by Forward's
     // share endpoint and by Flag). `flagged` reflects the post's current
     // moderation state as returned by the API.
-    function renderMsgGroup(side, authorName, content, time, isReply, postId, flagged) {
+   function renderMsgGroup(side, authorName, content, time, isReply, postId, flagged) {
         const msgIndex = currentTopicMessages.length;
         currentTopicMessages.push({ author: authorName, content, postId, isReply: !!isReply, flagged: !!flagged });
 
@@ -990,8 +1084,6 @@ window.showNotMemberNotice = showNotMemberNotice;
             </div>
         `;
     }
-
-   
     async function flagPost(msgIndex) {
         const msg = currentTopicMessages[msgIndex];
         if (!msg || !msg.postId) return;
@@ -1042,11 +1134,11 @@ window.showNotMemberNotice = showNotMemberNotice;
         const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
 
         listEl.innerHTML = members
-            .filter(m => m.user_id !== myId)
+            .filter(m => (m.user_id ?? m.id) !== myId)
             .map(m => `
                 <label>
-                    <input type="checkbox" value="${m.user_id}">
-                    ${m.full_name || m.name}
+                    <input type="checkbox" value="${m.user_id ?? m.id}">
+                    <span class="exclusion-name">${m.full_name || m.name}</span>
                 </label>
             `).join('') || '<div class="muted" style="font-size:13px;">No other members in this group.</div>';
     }
@@ -1289,11 +1381,26 @@ window.showNotMemberNotice = showNotMemberNotice;
             e.preventDefault();
             if (!activeBrowseTopicId) return;
             const textarea = document.getElementById('dashComposerInput');
-            const excludeIds = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'))
-                .map(cb => Number(cb.value));
-            await api(`/topics/${activeBrowseTopicId}/posts`, { method: 'POST', body: { content: textarea.value, exclude_user_ids: excludeIds } });
+            const excludeCheckboxes = Array.from(document.querySelectorAll('#dashExclusionList input[type="checkbox"]:checked'));
+            const excludeIds = excludeCheckboxes
+                .map(cb => Number(cb.value))
+                .filter(id => !Number.isNaN(id));
+
+            const res = await api(`/topics/${activeBrowseTopicId}/posts`, {
+                method: 'POST',
+                body: { content: textarea.value, exclude_user_ids: excludeIds }
+            });
+
+            if (!res || res.errors || res.error) {
+                alert('Your message could not be posted. Please try again.');
+                return;
+            }
+
             textarea.value = '';
             textarea.style.height = 'auto';
+            // Uncheck exclusions after a successful send so the next message
+            // doesn't silently keep excluding the same members.
+            excludeCheckboxes.forEach(cb => { cb.checked = false; });
             loadBrowsePosts();
         }
     });
@@ -1361,6 +1468,9 @@ window.showNotMemberNotice = showNotMemberNotice;
     }
 
     let myAttemptsByQuiz = {};
+    // Quiz ids we've already auto-launched a popup for this session, so we
+    // don't keep re-opening the same window on every refresh.
+    const autoOpenedQuizIds = new Set();
 
     async function loadStudentQuizzes() {
         const container = document.getElementById('studentQuizzes');
@@ -1370,6 +1480,30 @@ window.showNotMemberNotice = showNotMemberNotice;
 
         const quizzes = await api('/me/quizzes') || [];
 
+        // Auto-open: if a published quiz's configured window has started
+        // (and not yet ended) and the student hasn't submitted an attempt
+        // or already been auto-launched into it, pop the quiz open on its
+        // own so they don't have to notice and click "Take quiz" in time.
+        const now = new Date();
+        quizzes.forEach(q => {
+            const attempt = myAttemptsByQuiz[q.quiz_id];
+            if (attempt && attempt.submitted_at) return;
+            if (q.status !== 'Open') return;
+            if (autoOpenedQuizIds.has(q.quiz_id)) return;
+            if (!q.opens_at || !q.ends_at) return;
+
+            const opensAt = new Date(q.opens_at);
+            const endsAt = new Date(q.ends_at);
+            if (now >= opensAt && now < endsAt) {
+                autoOpenedQuizIds.add(q.quiz_id);
+                window.open(
+                    `/quizzes/${q.quiz_id}`,
+                    `quiz-${q.quiz_id}`,
+                    'width=900,height=700'
+                );
+            }
+        });
+ 
         container.innerHTML = quizzes.map(q => {
             const groupName = q.group?.name ?? 'Unknown group';
             const attempt = myAttemptsByQuiz[q.quiz_id];
@@ -1392,8 +1526,10 @@ window.showNotMemberNotice = showNotMemberNotice;
     }
 
     // ---- Recommendations: card format (title + category + post count),
-    // plus the ML relevance_score (0-1, from TopicRecommendation /
-    // RecommendationService) surfaced as a "% match" badge + bar. ----
+    // plus the activity score (0-1, from TopicRecommendation /
+    // RecommendationController) surfaced as a "% Trending" badge + bar.
+    // Score = this topic's share of posts among all topics in the user's
+    // groups, so it reflects overall activity, not personalized relevance. ----
     async function loadRecommendations() {
         const recs = await api('/recommendations') || [];
         document.getElementById('recommendations').innerHTML = recs.map(r => {
@@ -1402,7 +1538,7 @@ window.showNotMemberNotice = showNotMemberNotice;
                 <div class="card">
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
                         <strong><a href="/topics/${r.topic.topic_id}">${r.topic.title}</a></strong>
-                        <span class="badge" style="flex-shrink:0; background:var(--accent); color:#fff; font-size:11px;">${pct}% match</span>
+                        <span class="badge" style="flex-shrink:0; background:var(--accent); color:#fff; font-size:11px;">${pct}% Trending</span>
                     </div>
                     <div class="muted">${r.topic.category ?? 'General'} · ${r.topic.posts_count ?? 0} posts</div>
                     <div style="margin-top:6px; height:5px; border-radius:3px; background:#e5e7eb; overflow:hidden;">
@@ -1413,13 +1549,51 @@ window.showNotMemberNotice = showNotMemberNotice;
         }).join('') || '<div class="empty-state">No recommendations yet.</div>';
     }
 
-    async function loadNotifications() {
-        const data = await api('/notifications');
-        const notifications = (data && (data.data || data)) || [];
-        document.getElementById('notifications').innerHTML = notifications.map(n => `
-            <div style="margin-bottom: 4px;"><strong>${n.type}</strong>: ${n.message}</div>
-        `).join('') || '<div class="empty-state">No notifications yet.</div>';
-    }
+    let currentNotifications = [];
+
+async function loadNotifications() {
+    const data = await api('/notifications');
+    currentNotifications = (data && (data.data || data)) || [];
+    renderNotifications();
+}
+
+function renderNotifications() {
+    document.getElementById('notifications').innerHTML = currentNotifications.map((n, i) => {
+        const meta = notifIconMeta(n.type);
+        return `
+            <div class="notif-card${!n.is_read ? ' unread' : ''}" onclick="markOneNotificationRead(${i})">
+                <div class="notif-icon ${meta.cls}">${meta.icon}</div>
+                <div class="notif-body">
+                    <div class="notif-title">${n.type}</div>
+                    <div class="notif-message">${n.message}</div>
+                    <div class="notif-time">${relativeTime(n.created_at)}</div>
+                </div>
+                ${!n.is_read ? '<span class="notif-dot"></span>' : ''}
+            </div>
+        `;
+    }).join('') || '<div class="empty-state">No notifications yet.</div>';
+}
+
+async function markOneNotificationRead(index) {
+    const n = currentNotifications[index];
+    if (!n || n.is_read) return;
+    await api(`/notifications/${n.notification_id}/read`, { method: 'PATCH', body: {} });
+    n.is_read = true;
+    renderNotifications();
+    refreshNotifBadge();
+}
+window.markOneNotificationRead = markOneNotificationRead;
+
+window.prependLiveNotification = function (e) {
+    currentNotifications.unshift({
+        notification_id: e.notification_id,
+        type: e.type,
+        message: e.message,
+        created_at: e.created_at,
+        is_read: false,
+    });
+    renderNotifications();
+};
 
     async function init() {
         initDashSidebar(document, 'panel-groups');
@@ -1429,6 +1603,15 @@ window.showNotMemberNotice = showNotMemberNotice;
         loadStudentQuizzes();
         loadRecommendations();
         loadNotifications();
+
+        // Auto-refresh: keep quizzes/notifications current in the
+        // background so a quiz whose configured time arrives gets picked
+        // up (and auto-launched) even while the student is elsewhere on
+        // the dashboard, without them having to manually reload the page.
+        setInterval(() => {
+            loadStudentQuizzes();
+            loadNotifications();
+        }, 20000);
     }
 
     init();

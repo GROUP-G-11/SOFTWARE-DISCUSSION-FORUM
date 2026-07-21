@@ -35,12 +35,116 @@
             background: var(--paper);
             color: var(--ink);
         }
+        .notif-card {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; margin-bottom: 10px;
+    transition: box-shadow .15s ease, transform .15s ease;
+}
+.notif-card {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff; margin-bottom: 10px; cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease;
+}
+.notif-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.08); transform: translateY(-1px); }
+.notif-card.unread { background: #fafcfb; }
+
+.notif-icon {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    background: #eef2f1; color: var(--accent);
+}
+
+/* Post / Reply — blue family */
+.notif-card.post .notif-icon, .notif-card.reply .notif-icon { background: #dbeafe; color: #1d4ed8; }
+.notif-card.post.unread, .notif-card.reply.unread { border-left-color: #1d4ed8; }
+
+/* Quiz — amber family */
+.notif-card.quiz .notif-icon { background: #fef3c7; color: #b45309; }
+.notif-card.quiz.unread { border-left-color: #b45309; }
+
+/* Flag / moderation — red family */
+.notif-card.flag .notif-icon { background: #fee2e2; color: #dc2626; }
+.notif-card.flag.unread { border-left-color: #dc2626; }
+
+/* Warning — orange family */
+.notif-card.warning .notif-icon { background: #ffedd5; color: #c2410c; }
+.notif-card.warning.unread { border-left-color: #c2410c; }
+
+/* Blacklist — dark/severe */
+.notif-card.blacklist .notif-icon { background: #ede9fe; color: #6d28d9; }
+.notif-card.blacklist.unread { border-left-color: #6d28d9; }
+
+.notif-body { flex: 1; min-width: 0; }
+.notif-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.notif-message { font-size: 13.5px; color: var(--slate); }
+.notif-time { font-size: 12px; color: var(--slate); margin-top: 4px; }
+.notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 6px; }
+
+.nav-badge {
+    background: #dc2626; color: #fff; font-size: 11px; font-weight: 700;
+    min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px;
+    display: none; align-items: center; justify-content: center; margin-left: auto;
+}
+.nav-badge.show { display: inline-flex; }
+/* Sidebar bell badge */
+.nav-badge {
+    background: #dc2626; color: #fff; font-size: 11px; font-weight: 700;
+    min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px;
+    display: none; align-items: center; justify-content: center; margin-left: auto;
+}
+.nav-badge.show { display: inline-flex; }
+        /* ---------- Global top bar: full-width strip above the shell ----------
+           Cream, same tone as the page background, so it reads as part of
+           the canvas rather than a separate colored banner. Holds the brand
+           on the left and the signed-in user's welcome message on the
+           right - both used to live lower down (sidebar brand row / a
+           per-dashboard <h1>) and are now consolidated up here so every
+           page gets the same top-of-screen chrome. */
+        .app-topbar {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px;
+            padding: 16px 28px;
+            background: var(--paper);
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+        }
+        .app-topbar-brand {
+            display: flex; align-items: center; gap: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+            font-size: 17px;
+            color: var(--ink);
+        }
+        .app-topbar-brand-icon {
+            font-size: 16px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+            background: rgba(47,111,94,.14); border-radius: 8px;
+            flex-shrink: 0;
+        }
+        .app-topbar-welcome {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--warn);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        @media (max-width: 760px) {
+            .app-topbar { padding: 12px 16px; }
+            .app-topbar-brand { font-size: 14px; }
+            .app-topbar-welcome { font-size: 13px; }
+        }
         /* ---------- Global app shell: sidebar (left) + content (right) ----------
            This is the one consistent frame every page gets via
            @@extends('layouts.app'). Individual pages just @@yield('content')
            into the right-hand pane; they don't need to know the sidebar
            exists. Auth pages (login/register) opt out via a body class. */
-        .app-shell { display: flex; align-items: stretch; min-height: 100vh; }
+        .app-shell { display: flex; align-items: stretch; min-height: calc(100vh - 65px); }
         .app-sidebar {
             width: 248px;
             flex-shrink: 0;
@@ -49,20 +153,13 @@
             display: flex;
             flex-direction: column;
             position: sticky;
-            top: 0;
-            height: 100vh;
+            top: 65px;
+            height: calc(100vh - 65px);
         }
-        .app-brand {
-            display: flex; align-items: center; gap: 10px;
-            padding: 22px 20px 18px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: 15px;
-        }
-        .app-brand-icon {
-            font-size: 16px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
-            background: rgba(47,111,94,.25); border-radius: 8px;
-        }
-        .app-nav { display: flex; flex-direction: column; padding: 4px 10px; overflow-y: auto; flex: 1; }
+        /* Hamburger toggle: only ever shown on mobile (see the 760px query
+           below). Hidden here so it takes no space/has no effect on desktop. */
+        .mobile-menu-toggle { display: none; }
+        .app-nav { display: flex; flex-direction: column; padding: 18px 10px 4px; overflow-y: auto; flex: 1; }
         .app-nav-section {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
@@ -111,17 +208,41 @@
         .app-sidebar-footer .app-user { opacity: .9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .app-sidebar-footer a { color: var(--paper); opacity: .6; text-decoration: none; font-size: 12px; transition: opacity .12s ease; }
         .app-sidebar-footer a:hover { opacity: 1; text-decoration: underline; }
-        .app-main { flex: 1; min-width: 0; padding: 32px 24px 80px; }
-        .app-main > .content-col { max-width: 880px; margin: 0 auto; }
-        /* Dashboard/chat pages want to fill the available width rather than
-           sit in a narrow centered column like plain content pages (forms,
-           profile, etc). */
-        .app-main:has(.dash-shell) .content-col,
-        .app-main:has(.chat-thread) .content-col { max-width: 1400px; }
+        .app-main { flex: 1; min-width: 0; padding: 0; }
+        /* content-col is the one wrapper every page's @@yield('content') sits
+           in (see the <main> markup below). Making IT the flush white panel
+           - instead of the old padded, narrower, centered column - means
+           every page gets a full-bleed white area that starts exactly where
+           the top bar ends and touches the sidebar, the right edge, and the
+           bottom of the screen; only the top bar stays cream. */
+        .app-main > .content-col {
+            background: #fff;
+            min-height: calc(100vh - 65px);
+            border-left: 1px solid var(--line);
+            padding: 32px 28px 60px;
+        }
+        /* Dashboard/chat pages already build their own flush white box
+           (.dash-shell / .chat-thread) for the panel-switching UI, so let
+           content-col pass through untouched there to avoid a white-on-white
+           double border. */
+        .app-main:has(.dash-shell) > .content-col,
+        .app-main:has(.chat-thread) > .content-col {
+            background: transparent;
+            min-height: 0;
+            border-left: none;
+            padding: 0;
+        }
+        .app-main:has(.dash-shell) .dash-shell,
+        .app-main:has(.chat-thread) .chat-thread {
+            margin-top: 0;
+            border: none;
+            border-left: 1px solid var(--line);
+            border-radius: 0;
+            min-height: calc(100vh - 65px);
+        }
         @media (max-width: 760px) {
             .app-shell { flex-direction: column; }
             .app-sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; }
-            .app-brand { padding: 12px 14px; }
             .app-nav { flex-direction: row; overflow-x: auto; padding: 0 6px; }
             .app-nav-section { display: none; }
             .app-nav-item { padding: 10px 12px; flex-shrink: 0; }
@@ -130,6 +251,7 @@
             .app-sidebar-footer { border-top: none; padding: 10px 14px; }
         }
         /* Auth pages (login/register/rules) render full-bleed, no sidebar */
+        body.auth-page .app-topbar { display: none; }
         body.auth-page .app-sidebar { display: none; }
         body.auth-page .app-main { padding: 0; }
         h1, h2, h3 { font-family: 'Iowan Old Style', Georgia, serif; color: var(--ink); }
@@ -294,9 +416,19 @@
         $onDashboard = request()->is('dashboard') || request()->is('dashboard/*');
         $onAdminDash = request()->is('dashboard/admin');
     @endphp
+    <div class="app-topbar">
+        <div class="app-topbar-brand"><span class="app-topbar-brand-icon">
+         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path d="M11.7 2.805a.75.75 0 0 1 .6 0A60.65 60.65 0 0 1 22.83 8.72a.75.75 0 0 1-.231 1.337 49.948 49.948 0 0 0-9.902 3.912l-.003.002c-.114.06-.227.119-.34.18a.75.75 0 0 1-.707 0A50.88 50.88 0 0 0 7.5 12.173v-.224c0-.131.067-.248.172-.311a54.615 54.615 0 0 1 4.653-2.52.75.75 0 0 0-.65-1.352 56.123 56.123 0 0 0-4.78 2.589 1.858 1.858 0 0 0-.859 1.228 49.803 49.803 0 0 0-4.634-1.527.75.75 0 0 1-.231-1.337A60.653 60.653 0 0 1 11.7 2.805Z" />
+  <path d="M13.06 15.473a48.45 48.45 0 0 1 7.666-3.282c.134 1.414.22 2.843.255 4.284a.75.75 0 0 1-.46.711 47.87 47.87 0 0 0-8.105 4.342.75.75 0 0 1-.832 0 47.87 47.87 0 0 0-8.104-4.342.75.75 0 0 1-.461-.71c.035-1.442.121-2.87.255-4.286.921.304 1.83.634 2.726.99v1.27a1.5 1.5 0 0 0-.14 2.508c-.09.38-.222.753-.397 1.11.452.213.901.434 1.346.66a6.727 6.727 0 0 0 .551-1.607 1.5 1.5 0 0 0 .14-2.67v-.645a48.549 48.549 0 0 1 3.44 1.667 2.25 2.25 0 0 0 2.12 0Z" />
+  <path d="M4.462 19.462c.42-.419.753-.89 1-1.395.453.214.902.435 1.347.662a6.742 6.742 0 0 1-1.286 1.794.75.75 0 0 1-1.06-1.06Z" />
+</svg>
+   
+        </span> Smart Discussion Forum</div>
+        <div class="app-topbar-welcome" id="topbarWelcome">&nbsp;</div>
+    </div>
     <div class="app-shell">
         <aside class="app-sidebar">
-            <div class="app-brand"><span class="app-brand-icon">🚀</span> SDF</div>
             <nav class="app-nav">
                 <div class="app-nav-section">Workspace</div>
                 <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-groups' || !$panel)) || ($onAdminDash && $panel === 'panel-groups') ? 'active' : '' }}">
@@ -305,7 +437,7 @@
                 <!--a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ (request()->is('groups/*') || request()->is('topics/*')) ? 'active' : '' }}">
                     <span class="icon">💬</span> Topics
                 </a-->
-                <a href="/dashboard?panel=panel-group-admin" data-dash-panel="panel-group-admin" id="navGroupAdmin" data-role="administrator,lecturer" class="app-nav-item {{ $panel === 'panel-group-admin' ? 'active' : '' }}">
+                <a href="/dashboard?panel=panel-group-admin" data-dash-panel="panel-group-admin" id="navGroupAdmin" style="display:none;" class="app-nav-item {{ $panel === 'panel-group-admin' ? 'active' : '' }}">
                     <span class="icon">🛡️</span> Group Admin
                 </a>
 
@@ -322,9 +454,13 @@
                 <a href="/dashboard?panel=panel-recommendations" data-dash-panel="panel-recommendations" data-role="student" style="display:none;" class="app-nav-item {{ $panel === 'panel-recommendations' ? 'active' : '' }}">
                     <span class="icon">✨</span> Recommended
                 </a>
-                <a href="/dashboard?panel=panel-notifications" data-dash-panel="panel-notifications" data-role="student,lecturer" style="display:none;" class="app-nav-item {{ $panel === 'panel-notifications' ? 'active' : '' }}">
+                <!--a href="/dashboard?panel=panel-notifications" data-dash-panel="panel-notifications" data-role="student,lecturer" style="display:none;" class="app-nav-item {{ $panel === 'panel-notifications' ? 'active' : '' }}">
                     <span class="icon">🔔</span> Notifications
-                </a>
+                </a-->
+               <a href="/dashboard?panel=panel-notifications" data-dash-panel="panel-notifications" data-role="student,lecturer" style="display:none;" class="app-nav-item {{ $panel === 'panel-notifications' ? 'active' : '' }}" onclick="markNotificationsSeen()">
+    <span class="icon">🔔</span> Notifications
+    <span class="nav-badge" id="notifBadge"></span>
+</a>
 
                 <div class="app-nav-section" data-role="administrator" style="display:none;" id="navSectionAdmin">Administration</div>
                 <a href="/dashboard?panel=panel-overview" data-dash-panel="panel-overview" data-role="administrator" style="display:none;" class="app-nav-item {{ $onAdminDash && ($panel === 'panel-overview' || !$panel) ? 'active' : '' }}">
@@ -375,12 +511,114 @@
             if (res.status === 401) { window.location = '/'; return; }
             return res.json();
         }
+
+
+    function notifIconMeta(type) {
+    const t = (type || '').toLowerCase();
+    if (t.includes('quiz'))       return { icon: '📝', cls: 'quiz' };
+    if (t.includes('blacklist'))  return { icon: '🔒', cls: 'blacklist' };
+    if (t.includes('warning'))    return { icon: '⚠️', cls: 'warning' };
+    if (t === 'reply')            return { icon: '↩️', cls: 'reply' };
+    if (t.includes('new post'))   return { icon: '💬', cls: 'post' };
+    if (t.includes('general'))    return { icon: '🚩', cls: 'flag' }; // your flag notifications use type 'General'
+    return { icon: '🔔', cls: '' };
+
+}
+
+function relativeTime(dt) {
+    if (!dt) return '';
+    const mins = Math.floor((Date.now() - new Date(dt).getTime()) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dt).toLocaleDateString();
+}
+
+function updateNotifBadge(count) {
+    const badge = document.getElementById('notifBadge');
+    if (!badge) return;
+    if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.classList.add('show');
+    } else {
+        badge.classList.remove('show');
+    }
+}
+window.updateNotifBadge = updateNotifBadge;
+
+async function refreshNotifBadge() {
+    if (!localStorage.getItem('sdf_token')) return;
+    const data = await api('/notifications/unread-count');
+    updateNotifBadge(data?.unread_count ?? 0);
+}
+window.refreshNotifBadge = refreshNotifBadge;
+
+window.markNotificationsSeen = async function () {
+    await api('/notifications/read-all', { method: 'PATCH', body: {} });
+    updateNotifBadge(0);
+};
+
+/* ---------- Live push (optional layer on top of polling) ---------- */
+let _notifChannelJoined = false;
+let _notifEchoWaitAttempts = 0;
+
+function initNotificationChannel() {
+    if (_notifChannelJoined) return;
+    if (!window.CURRENT_USER) return;
+
+    if (typeof window.Echo === 'undefined') {
+        _notifEchoWaitAttempts++;
+        if (_notifEchoWaitAttempts > 20) {
+            console.warn('Echo never loaded after 10s - relying on polling only this session.');
+            return;
+        }
+        setTimeout(initNotificationChannel, 500);
+        return;
+    }
+
+    _notifChannelJoined = true;
+    window.Echo.private(`user.${window.CURRENT_USER.user_id}`)
+        .listen('.notification.new', (e) => {
+            const badge = document.getElementById('notifBadge');
+            const current = (badge && badge.classList.contains('show')) ? (parseInt(badge.textContent, 10) || 0) : 0;
+            updateNotifBadge(current + 1);
+
+            if (typeof window.prependLiveNotification === 'function') {
+                window.prependLiveNotification(e);
+            }
+        })
+        .error((error) => {
+            console.error('Notification channel subscription error:', error);
+        });
+}
+        // Mobile hamburger menu: nav sits collapsed in normal document flow
+        // (see the 760px query) and this just toggles it open/closed. No-op
+        // on desktop since the button is display:none there.
+        document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
+            const nav = document.querySelector('.app-nav');
+            const btn = document.getElementById('mobileMenuToggle');
+            if (!nav || !btn) return;
+            const isOpen = nav.classList.toggle('mobile-open');
+            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+        document.querySelectorAll('.app-nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                document.querySelector('.app-nav')?.classList.remove('mobile-open');
+                document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
+            });
+        });
+
         document.getElementById('logoutLink')?.addEventListener('click', async (e) => {
             e.preventDefault();
             await api('/logout', { method: 'POST' });
             localStorage.removeItem('sdf_token');
             window.location = '/';
         });
+
+        
 
         // Shared current-user/role lookup. Every dashboard page calls this
         // once on load rather than re-implementing its own /me + role logic.
@@ -424,6 +662,9 @@
             const displayName = me.full_name || me.name || '';
             if (nameEl) nameEl.textContent = displayName;
 
+            const topbarWelcomeEl = document.getElementById('topbarWelcome');
+            if (topbarWelcomeEl) topbarWelcomeEl.textContent = displayName ? `Welcome, ${displayName}` : '';
+
             const avatarEl = document.getElementById('sidebarAvatar');
             if (avatarEl && displayName) {
                 const initials = displayName.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -432,6 +673,24 @@
 
             return me;
         }
+
+        // Shared so the profile page can call this the instant an upload
+        // succeeds, instead of waiting for a full page reload to see it
+        // reflected in the sidebar (which is shared across every dashboard).
+        window.updateSidebarAvatar = function (imageUrl, initials) {
+            const imgEl = document.getElementById('sidebarAvatarImg');
+            const initialsEl = document.getElementById('sidebarAvatarInitials');
+            if (!imgEl || !initialsEl) return;
+            if (imageUrl) {
+                imgEl.src = imageUrl;
+                imgEl.style.display = 'block';
+                initialsEl.style.display = 'none';
+            } else {
+                imgEl.style.display = 'none';
+                initialsEl.style.display = '';
+                if (initials) initialsEl.textContent = initials;
+            }
+        };
         // Shows the matching .dash-panel for whichever nav item was clicked
         // in the *global* sidebar (layouts/app.blade.php), which links to
         // pages like /dashboard?panel=panel-quizzes. This used to also wire
@@ -459,8 +718,10 @@
         // loadCurrentUser() themselves (dashboards) just get a second,
         // harmless /me lookup.
         if (!document.body.classList.contains('auth-page') && localStorage.getItem('sdf_token')) {
-            loadCurrentUser();
-        }
+    loadCurrentUser().then(initNotificationChannel);
+    refreshNotifBadge();
+    setInterval(refreshNotifBadge, 20000); // safety net if the socket drops or never connects
+}
     </script>
     @yield('scripts')
 </body>
