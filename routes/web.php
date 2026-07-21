@@ -12,10 +12,6 @@ use Illuminate\Support\Facades\Route;
 | mirror the app's structure so a given feature's route/view pair is easy
 | to find.
 */
-// ---------------------------------------------------------------------
-// Public share preview (SDD 5.9) - reachable with NO auth, since this is
-// the "public reference link" handed to external social platforms.
-// ---------------------------------------------------------------------
 Route::get('/share/{post}', [App\Http\Controllers\Api\PublicShareController::class, 'show'])
     ->name('share.post');
 

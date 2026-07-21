@@ -298,7 +298,7 @@
 
     let myGroups = [];
 
-    function handleIncomingShareLink() {
+     function handleIncomingShareLink() {
     const params = new URLSearchParams(window.location.search);
     const groupId = params.get('group_id');
     const topicId = params.get('topic_id');
@@ -1288,7 +1288,7 @@ window.showNotMemberNotice = showNotMemberNotice;
     if (!groupId) { topicSelect.innerHTML = ''; return; }
     topicSelect.innerHTML = '<option>Loading…</option>';
 
-    const data = await api(`/groups/${groupId}/topics`);
+        const data = await api(`/groups/${groupId}/topics`);
     const topics = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
     topicSelect.innerHTML = topics.map(t => `<option value="${t.topic_id}">${t.title}</option>`).join('')
         || '<option value="">No topics in this group</option>';
@@ -1301,7 +1301,7 @@ window.showNotMemberNotice = showNotMemberNotice;
     window.closeForwardModal = closeForwardModal;
 
     /* ---------- API Log integration & Redirection ---------- */
-    async function shareToPlatform(platform) {
+   async function shareToPlatform(platform) {
     if (forwardMessageIndex === null) return;
     const msg = currentTopicMessages[forwardMessageIndex];
 
@@ -1483,13 +1483,26 @@ window.showNotMemberNotice = showNotMemberNotice;
     });
 
     async function loadMyGrades() {
-    const container = document.getElementById('studentGrades');
-    const eligibleGroups = myGroups.filter(g =>
+        const container = document.getElementById('studentGrades');
+       const eligibleGroups = myGroups.filter(g =>
         (g.is_member || g.is_group_admin) && !(g.is_banned || g.banned)
     );
     if (!eligibleGroups.length) {
         container.innerHTML = '<div class="empty-state">Join a group to see your grades.</div>';
         return;
+    }
+    const cards = await Promise.all(eligibleGroups.map(async (g) => {
+        const grade = await api(`/groups/${g.group_id}/my-grade`);
+        if (!grade) return '';
+            return `
+                <div class="card">
+                    <strong>${grade.group}</strong>
+                    <div class="muted">Participation: ${Number(grade.participation_total).toFixed(2)} · Quizzes: ${Number(grade.quiz_total).toFixed(2)}</div>
+                    <div><strong>Overall total: ${Number(grade.overall_total).toFixed(2)}</strong></div>
+                </div>
+            `;
+        }));
+        container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
     }
     const cards = await Promise.all(eligibleGroups.map(async (g) => {
         const grade = await api(`/groups/${g.group_id}/my-grade`);
@@ -1652,7 +1665,6 @@ window.prependLiveNotification = function (e) {
         loadNotifications();
 
         handleIncomingShareLink(); // <-- add this, after loadGroups() so myGroups is populated
-
 
         // Auto-refresh: keep quizzes/notifications current in the
         // background so a quiz whose configured time arrives gets picked
