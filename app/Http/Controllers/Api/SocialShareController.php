@@ -26,7 +26,9 @@ class SocialShareController extends Controller
             return response()->json(['message' => 'This content cannot be shared externally.'], 403);
         }
 
-        $shareUrl = url("/topics/{$post->topic_id}#post-{$post->post_id}");
+        $shareUrl = url("/share/{$post->post_id}");
+
+        //$shareUrl = url("/topics/{$post->topic_id}#post-{$post->post_id}");
 
         $share = SocialShare::create([
             'post_id' => $post->post_id,
@@ -38,4 +40,5 @@ class SocialShareController extends Controller
 
         return response()->json($share, 201);
     }
+    
 }
