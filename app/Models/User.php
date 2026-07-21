@@ -150,12 +150,5 @@ class User extends Authenticatable
             ->exists();
     }
 
-    /** Whether this user belongs to the given group — used by routes/channels.php
-     *  to authorize joining a topic's presence channel. */
-    public function isMemberOf(int $groupId): bool
-    {
-        return $this->memberships()
-            ->where('group_id', $groupId)
-            ->exists();
-    }
+   
 }

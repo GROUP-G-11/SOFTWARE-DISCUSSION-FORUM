@@ -109,10 +109,12 @@
                 errDiv.style.display = 'block';
                 return;
             }
-
-            if (data.token) {
-                localStorage.setItem('sdf_token', data.token);
-            }
+if (data.token) {
+    localStorage.setItem('sdf_token', data.token);
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get('redirect');
+    window.location.href = redirectTo || '/dashboard';
+}
             window.location = '/dashboard';
 
         } catch (networkErr) {

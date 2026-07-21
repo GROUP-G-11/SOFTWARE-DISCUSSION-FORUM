@@ -340,9 +340,12 @@
             }
 
             if (data.token) {
-                localStorage.setItem('sdf_token', data.token);
-                window.location.href = '/dashboard';
-            } else {
+    localStorage.setItem('sdf_token', data.token);
+    const params = new URLSearchParams(window.location.search);
+    const redirectTo = params.get('redirect');
+    window.location.href = redirectTo || '/dashboard';
+}
+             else {
                 errText.textContent = 'Authentication token missing from server.';
                 errDiv.style.display = 'flex';
                 setLoading(false);
