@@ -160,8 +160,9 @@
        Scoped to <=640px only, so desktop/tablet layout above is 100%
        untouched. Mirrors the phone mockup: stacked headers with
        full-width buttons, wider chat bubbles, tighter chrome. */
-    .groups-header {    display: flex;    align-items: center;    justify-content: space-between;
+      .groups-header {    display: flex;    align-items: center;    justify-content: space-between;
     flex-wrap: wrap;    gap: 12px;    margin-bottom: 16px; }
+    
     .topics-head {display: flex;   align-items: center;    justify-content: space-between;
        flex-wrap: wrap;    gap: 12px;    margin-bottom: 14px;}
       .topics-head-actions {
@@ -169,7 +170,6 @@
     @media (max-width: 640px) {
         .groups-header { flex-direction: column; align-items: stretch; gap: 10px; }
         .groups-header .btn { width: 100%; }
-        
 
         .topics-head { flex-direction: column; align-items: stretch; gap: 10px; }
         .topics-head-actions { width: 100%; }
@@ -415,7 +415,7 @@
                 // Pass through the post/reply id + moderation flag so live
                 // posts get the same Flag control and highlight as posts
                 // loaded from the initial fetch.
-                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged);
+                const newPostHtml = renderMsgGroup(side, authorName, e.reply.content, timeStr, false, e.reply.post_id ?? e.reply.reply_id, e.reply.is_flagged, e.reply.post_id);
 
                 // Append the live message to the chat view container
                 container.insertAdjacentHTML('beforeend', newPostHtml);
@@ -508,7 +508,6 @@
                             : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
                         }
                     </div>
-                   
                 </div>
         `;
     }).join('') || '<div class="empty-state">No groups exist yet.</div>';
@@ -595,16 +594,17 @@ function closeCreateGroupModalOnOuterClick(event) {
     function topicsViewHtml() {
         // Group admins get a quick shortcut straight to their group statistics
         // page without having to leave the drill-down view (the full stats
-        // link still also lives in the "Group Admin" sidebar panel). It now
+        // link still also lives in the "Group Admin" sidebar panel). It
         // lives inline with the Members / New Topic actions (last in the
-        // row) instead of a separate floated line, and uses the same
-        // "btn secondary" sizing as the other action buttons.
+        // row), using the same "btn secondary" sizing as the other action
+        // buttons.
         const statsShortcut = isGroupAdmin(activeBrowseGroupId)
             ? `<a class="btn secondary" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
             : '';
-            /* removed back to groups and added create topic, searching , filtering */
     return `
-          ${statsShortcut}
+        <a class="back-link" onclick="browseGoBack()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to groups
+        </a>
         <div class="topics-head">
             <div>
                 <h3>${activeBrowseGroupName}</h3>
@@ -1550,7 +1550,7 @@ window.showNotMemberNotice = showNotMemberNotice;
         }).join('') || '<div class="empty-state">No recommendations yet.</div>';
     }
 
-    let currentNotifications = [];
+   let currentNotifications = [];
 
 async function loadNotifications() {
     const data = await api('/notifications');
@@ -1598,7 +1598,16 @@ window.prependLiveNotification = function (e) {
 
     async function init() {
         initDashSidebar(document, 'panel-groups');
-        await loadWelcome();
+
+        const me = await loadCurrentUser();
+        if (!me) return;
+        // A lecturer/admin landing here directly (e.g. old bookmark) gets
+        // bounced to the dashboard that actually matches their role.
+        if (window.CURRENT_ROLE !== 'student') {
+            window.location.replace((window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin' : '/dashboard/lecturer') + window.location.search);
+            return;
+        }
+
         await loadGroups();
         loadMyGrades();
         loadStudentQuizzes();
@@ -1618,3 +1627,4 @@ window.prependLiveNotification = function (e) {
     init();
 </script>
 @endsection
+

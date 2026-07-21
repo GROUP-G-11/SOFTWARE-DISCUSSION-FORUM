@@ -14,35 +14,40 @@ use Illuminate\Http\Request;
  */
 class GroupController extends Controller
 {
-    public function index(Request $request)
-    {
-        $userId = $request->user()->user_id;
+   public function index(Request $request)
+{
+    $userId = $request->user()->user_id;
 
-        // FIXED: this previously returned bare Group rows with no indication
-        // of whether the requesting user is already a member/admin, so the
-        // student dashboard's "Join" button never flipped to "Joined" after
-        // joining — g.is_member / g.is_group_admin were always undefined.
-        // withExists() adds a per-row boolean scoped to this request's user
-        // (not a global column), and is_group_admin covers both the group
-        // owner (admin_id) and any student appointed as an active GroupAdmin.
-        $groups = Group::withCount(['members', 'topics'])
-            ->withExists([
-                'members as is_member' => fn ($q) => $q->where('users.user_id', $userId),
-            ])
-            ->paginate(20);
+    $myMembershipGroupIds = \App\Models\Membership::where('user_id', $userId)
+        ->pluck('group_id')
+        ->flip();
 
-        $groups->getCollection()->transform(function (Group $group) use ($userId) {
-            $group->is_group_admin = $group->admin_id == $userId
-                || GroupAdmin::where('group_id', $group->group_id)
-                    ->where('user_id', $userId)
-                    ->where('is_active', true)
-                    ->exists();
+    $myAdminGroupIds = \App\Models\GroupAdmin::where('user_id', $userId)
+        ->where('is_active', true)
+        ->pluck('group_id')
+        ->flip();
 
-            return $group;
-        });
+    $groups = Group::withCount(['members', 'topics'])->paginate(20);
 
-        return response()->json($groups);
-    }
+    $groups->getCollection()->transform(function ($group) use ($request, $myMembershipGroupIds, $myAdminGroupIds) {
+        $group->is_member = $myMembershipGroupIds->has($group->group_id);
+        $group->is_group_admin = $myAdminGroupIds->has($group->group_id);
+        $group->is_banned = $request->user()->isBlacklistedIn($group->group_id);
+
+        // ADDED: the lecturer dashboard's Groups panel reads is_owner (for
+        // the "Owner" badge) and can_view_group_statistics (to show the
+        // Statistics/Gradebook links) — these mirror
+        // StatisticsController::authorizeGroupAccess()'s rule (owner OR
+        // active group admin) but were never actually included in this
+        // response, so those badges/links silently never appeared.
+        $group->is_owner = $group->admin_id == $request->user()->user_id;
+        $group->can_view_group_statistics = $group->is_owner || $myAdminGroupIds->has($group->group_id);
+
+        return $group;
+    });
+
+    return response()->json($groups);
+}
 
     public function store(Request $request)
     {
