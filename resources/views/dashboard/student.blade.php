@@ -329,6 +329,17 @@
     window.history.replaceState({}, '', '/dashboard/student');
 }
 
+    async function loadWelcome() {
+        const me = await loadCurrentUser();
+        if (!me) return;
+        // A lecturer/admin landing here directly (e.g. old bookmark) gets
+        // bounced to the dashboard that actually matches their role.
+        if (window.CURRENT_ROLE !== 'student') {
+            window.location.replace((window.CURRENT_ROLE === 'administrator' ? '/dashboard/admin' : '/dashboard/lecturer') + window.location.search);
+            return;
+        }
+    }
+
     /* ---------- Groups panel: single drill-down view ---------- */
     let browseView = 'groups'; // 'groups' | 'topics' | 'posts'
     let activeBrowseGroupId = null;
@@ -886,6 +897,44 @@ window.showNotMemberNotice = showNotMemberNotice;
     }
     window.browseGoBack = browseGoBack;
 
+    /* ---------- Group members toggle (names under each group card in Groups list) ---------- */
+    const groupMembersCache = {};
+
+    async function toggleGroupMembers(event, groupId) {
+        event.stopPropagation();
+        const namesEl = document.getElementById(`membersNames-${groupId}`);
+        const toggleEl = document.getElementById(`membersToggle-${groupId}`);
+        if (!namesEl || !toggleEl) return;
+
+        const isOpen = namesEl.classList.contains('open');
+        if (isOpen) {
+            namesEl.classList.remove('open');
+            toggleEl.textContent = 'Show members';
+            return;
+        }
+
+        toggleEl.textContent = 'Hide members';
+        namesEl.classList.add('open');
+
+        if (groupMembersCache[groupId]) {
+            namesEl.innerHTML = groupMembersCache[groupId];
+            return;
+        }
+
+        namesEl.innerHTML = '<span class="muted">Loading members…</span>';
+
+        const data = await api(`/groups/${groupId}/members`);
+        const members = (data && (data.data || data)) || [];
+
+        const html = members.map(m => `<span class="member-chip">${m.full_name || m.name}</span>`).join('')
+            || '<span class="muted">No members yet.</span>';
+
+        groupMembersCache[groupId] = html;
+        namesEl.innerHTML = html;
+    }
+    window.toggleGroupMembers = toggleGroupMembers;
+
+
     async function joinGroupInline(event, groupId) {
         event.stopPropagation();
         const ok = window.confirm('By joining, you agree to the group rules (see /group-rules). Continue?');
@@ -1174,30 +1223,29 @@ window.showNotMemberNotice = showNotMemberNotice;
     let forwardMode = 'internal'; // 'internal' | 'external'
 
     function openForwardModal(msgIndex) {
-        const msg = currentTopicMessages[msgIndex];
-        if (!msg) return;
-        forwardMessageIndex = msgIndex;
+    const msg = currentTopicMessages[msgIndex];
+    if (!msg) return;
+    forwardMessageIndex = msgIndex;
 
-        // Populate raw text preview in the modal
-        document.getElementById('forwardPreview').textContent = `${msg.author}: ${msg.content}`;
+    document.getElementById('forwardPreview').textContent = `${msg.author}: ${msg.content}`;
+    setForwardMode('internal');
 
-        // Reset to Internal view on open
-        setForwardMode('internal');
+    // Only groups the student has actually joined can be forwarded into.
+    const joinableGroups = myGroups.filter(g => g.is_member || g.is_group_admin);
 
-        // Populate internal options
-        const groupSelect = document.getElementById('forwardGroupSelect');
-        groupSelect.innerHTML = myGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('')
-            || '<option value="">You have not joined any groups</option>';
-        groupSelect.onchange = () => populateForwardTopics(groupSelect.value);
+    const groupSelect = document.getElementById('forwardGroupSelect');
+    groupSelect.innerHTML = joinableGroups.map(g => `<option value="${g.group_id}">${g.name}</option>`).join('')
+        || '<option value="">You have not joined any groups</option>';
+    groupSelect.onchange = () => populateForwardTopics(groupSelect.value);
 
-        document.getElementById('forwardModalOverlay').classList.add('open');
+    document.getElementById('forwardModalOverlay').classList.add('open');
 
-        if (myGroups.length) {
-            populateForwardTopics(myGroups[0].group_id);
-        } else {
-            document.getElementById('forwardTopicSelect').innerHTML = '';
-        }
+    if (joinableGroups.length) {
+        populateForwardTopics(joinableGroups[0].group_id);
+    } else {
+        document.getElementById('forwardTopicSelect').innerHTML = '';
     }
+}
     window.openForwardModal = openForwardModal;
 
     // Toggles fields between Forum Groups and External Social Apps
@@ -1236,9 +1284,9 @@ window.showNotMemberNotice = showNotMemberNotice;
     window.setForwardMode = setForwardMode;
 
     async function populateForwardTopics(groupId) {
-        const topicSelect = document.getElementById('forwardTopicSelect');
-        if (!groupId) { topicSelect.innerHTML = ''; return; }
-        topicSelect.innerHTML = '<option>Loading…</option>';
+    const topicSelect = document.getElementById('forwardTopicSelect');
+    if (!groupId) { topicSelect.innerHTML = ''; return; }
+    topicSelect.innerHTML = '<option>Loading…</option>';
 
         const data = await api(`/groups/${groupId}/topics`);
     const topics = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
@@ -1278,6 +1326,7 @@ window.showNotMemberNotice = showNotMemberNotice;
         const shareUrl = response.shared_url;
         const textToShare = `Check out this post on the Student Discussion Forum:\n"${msg.content.substring(0, 100)}..."\nRead more here: ${shareUrl}`;
 
+        // ... rest unchanged (switch(platform) block, window.open, clipboard)
             // Step 6 & 7: Redirect or Deep Link
             let targetUrl = '';
             switch(platform) {
@@ -1455,6 +1504,19 @@ window.showNotMemberNotice = showNotMemberNotice;
         }));
         container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
     }
+    const cards = await Promise.all(eligibleGroups.map(async (g) => {
+        const grade = await api(`/groups/${g.group_id}/my-grade`);
+        if (!grade) return '';
+        return `
+            <div class="card">
+                <strong>${grade.group}</strong>
+                <div class="muted">Participation: ${Number(grade.participation_total).toFixed(2)} · Quizzes: ${Number(grade.quiz_total).toFixed(2)}</div>
+                <div><strong>Overall total: ${Number(grade.overall_total).toFixed(2)}</strong></div>
+            </div>
+        `;
+    }));
+    container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
+}
 
     let myAttemptsByQuiz = {};
     // Quiz ids we've already auto-launched a popup for this session, so we

@@ -15,6 +15,7 @@ class PostObserver
      */
     public function created(Post $post): void
     {
+       // GenerateUserRecommendationsJob::dispatch($post->author_id);
        // GenerateUserRecommendations::dispatch($post->author);
     }
 }
