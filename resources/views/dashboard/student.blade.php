@@ -1504,20 +1504,7 @@ window.showNotMemberNotice = showNotMemberNotice;
         }));
         container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
     }
-    const cards = await Promise.all(eligibleGroups.map(async (g) => {
-        const grade = await api(`/groups/${g.group_id}/my-grade`);
-        if (!grade) return '';
-        return `
-            <div class="card">
-                <strong>${grade.group}</strong>
-                <div class="muted">Participation: ${Number(grade.participation_total).toFixed(2)} · Quizzes: ${Number(grade.quiz_total).toFixed(2)}</div>
-                <div><strong>Overall total: ${Number(grade.overall_total).toFixed(2)}</strong></div>
-            </div>
-        `;
-    }));
-    container.innerHTML = cards.join('') || '<div class="empty-state">No grades recorded yet.</div>';
-}
-
+    
     let myAttemptsByQuiz = {};
     // Quiz ids we've already auto-launched a popup for this session, so we
     // don't keep re-opening the same window on every refresh.
