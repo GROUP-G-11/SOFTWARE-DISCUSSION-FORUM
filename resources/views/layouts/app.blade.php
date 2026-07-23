@@ -10,23 +10,26 @@
  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 
     <style>
-        :root {
-            --ink: #1c2b33;
-            --slate: #3d5a6c;
-            --paper: #f6f4ee;
-            --paper-dim: #ece8db;
-            --accent: #2f6f5e;
-            --accent-dark: #204b3f;
-            --warn: #b3542e;
-            --line: #d8d2c4;
-            --seal: #a8792f;
-            --seal-dim: #f2e8d5;
-            --sky: #2a5a72;
-            --sky-dim: #e6edf1;
-            --radius: 6px;
+       :root {
+            --ink: #211b3d;
+            --slate: #5b5a8d;
+            --paper: #fdfaf6;
+            --paper-dim: #f3ecff;
+            --accent: #0d9488;
+            --accent-dark: #0f766e;
+            --accent-2: #ec4899;
+            --warn: #f97316;
+            --line: #e4defc;
+            --seal: #f59e0b;
+            --seal-dim: #fef3c7;
+            --sky: #6366f1;
+            --sky-dim: #eef0ff;
+            --gradient-brand: linear-gradient(135deg, var(--accent) 0%, var(--sky) 55%, var(--accent-2) 100%);
+            --radius: 14px;
             --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             --serif: 'Iowan Old Style', 'Georgia', serif;
             --mono: ui-monospace, 'SF Mono', 'Courier New', monospace;
+        
         }
         * { box-sizing: border-box; }
         body {
@@ -313,15 +316,43 @@
         body.auth-page .app-main { padding: 0; }
         h1, h2, h3 { font-family: 'Iowan Old Style', Georgia, serif; color: var(--ink); }
         .card {
+            position: relative;
             background: #fff;
             border: 1px solid var(--line);
             border-radius: var(--radius);
-            padding: 20px 22px;
+            padding: 22px 24px;
             margin-bottom: 16px;
-            box-shadow: 0 1px 2px rgba(28,43,51,.04);
-            transition: box-shadow .18s ease, border-color .18s ease;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(99,102,241,.06);
+            transition: box-shadow .2s ease, transform .2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 8px 20px rgba(99,102,241,.14);
+            transform: translateY(-2px);
         }
 
+        /* Smaller nested "item" cards (a single grade/quiz/notification/group
+           row inside a bigger panel) get a quieter, muted-color treatment
+           instead of the bold top gradient — a soft tinted left border
+           feels intentional without competing with the section card
+           that contains them. */
+        .card.card-item {
+            padding: 16px 18px;
+            border-left: 4px solid var(--sky);
+            background: var(--sky-dim);
+            box-shadow: none;
+        }
+        .card.card-item::before { display: none; }
+        .card.card-item:hover {
+            transform: none;
+            box-shadow: 0 2px 6px rgba(99,102,241,.08);
+        }
+        /* A couple of alternating tints so a list of these doesn't look
+           monotonous — cycle by nth-child within any list container. */
+        .card.card-item:nth-child(3n+2) { border-left-color: var(--accent); background: #eafaf7; }
+        .card.card-item:nth-child(3n+3) { border-left-color: var(--accent-2); background: #f9fdf0; }
+        
         .panel-lecturer { border-left: 4px solid var(--warn); }
         .panel-student { border-left: 4px solid var(--sky); background: var(--sky-dim); }
         .panel-create { border-left: 4px solid var(--accent-dark); }
@@ -329,23 +360,26 @@
         .btn {
             display: inline-block;
             font-family: var(--sans);
-            background: var(--accent);
+            background: var(--gradient-brand);
+            background-size: 180% 180%;
+            background-position: 0% 50%;
             color: #fff;
             border: none;
             padding: 10px 18px;
-            border-radius: var(--radius);
+            border-radius: 999px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 700;
             text-decoration: none;
-            transition: background .15s ease, transform .1s ease, box-shadow .15s ease;
+            transition: background-position .35s ease, transform .12s ease, box-shadow .2s ease;
         }
-        .btn:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(32,75,63,.25); }
+        .btn:hover { background-position: 100% 50%; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(99,102,241,.35); }
         .btn:active { transform: translateY(0); box-shadow: none; }
-        .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); box-shadow: none; }
-        .btn.secondary:hover { background: rgba(47,111,94,.08); box-shadow: none; }
+        .btn.secondary { background: #fff; color: var(--accent-dark); border: 1.5px solid var(--accent); box-shadow: none; }
+        .btn.secondary:hover { background: var(--paper-dim); box-shadow: none; transform: translateY(-1px); }
         .btn.warn { background: var(--warn); }
-        .btn.warn:hover { background: #8f3f21; box-shadow: 0 4px 10px rgba(143,63,33,.25); }
+        .btn.warn:hover { background: #ea580c; box-shadow: 0 6px 16px rgba(249,115,22,.35); }
+        
         input, textarea, select {
             width: 100%;
             font-family: var(--sans);
@@ -401,9 +435,9 @@
             gap: 12px;
             margin-bottom: 16px;
         }
-        .stat-card {
-            background: #fff;
-            border: 1px solid var(--line);
+       .stat-card {
+            background: #faf6ef;
+            border: 1px solid #ecdfc8;
             border-radius: var(--radius);
             padding: 14px 16px;
             transition: transform .15s ease, box-shadow .15s ease;
