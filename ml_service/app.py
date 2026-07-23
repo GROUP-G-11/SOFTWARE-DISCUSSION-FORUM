@@ -11,7 +11,8 @@ load_dotenv()
 
 app = Flask(__name__)
 
-API_KEY = os.environ.get("ML_API_KEY", "dev-key-change-me")
+
+API_KEY = os.environ.get("ML_SERVICE_API_KEY") or os.environ.get("ML_API_KEY", "dev-key-change-me")
 
 classifier = joblib.load("models/classifier.pkl")
 vectorizer = joblib.load("models/vectorizer.pkl")

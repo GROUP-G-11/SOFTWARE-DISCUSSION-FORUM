@@ -146,7 +146,30 @@
         }
         /* Hamburger toggle: only ever shown on mobile (see the 760px query
            below). Hidden here so it takes no space/has no effect on desktop. */
-        .mobile-menu-toggle { display: none; }
+        .mobile-menu-toggle {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            width: 34px;
+            height: 34px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .mobile-menu-toggle span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: var(--ink);
+            border-radius: 2px;
+            transition: transform .2s ease, opacity .2s ease;
+        }
+        .mobile-menu-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+        .mobile-menu-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+        .mobile-menu-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
         .app-nav { display: flex; flex-direction: column; padding: 18px 10px 4px; overflow-y: auto; flex: 1; }
         .app-nav-section {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -229,14 +252,43 @@
             min-height: calc(100vh - 65px);
         }
         @media (max-width: 760px) {
-            .app-shell { flex-direction: column; }
-            .app-sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; }
-            .app-nav { flex-direction: row; overflow-x: auto; padding: 0 6px; }
-            .app-nav-section { display: none; }
-            .app-nav-item { padding: 10px 12px; flex-shrink: 0; }
+            .app-topbar { padding: 12px 16px; }
+            .app-topbar-brand { font-size: 14px; }
+            .app-topbar-welcome { font-size: 13px; }
+
+            .mobile-menu-toggle { display: flex; }
+
+            .app-shell { flex-direction: column; position: relative; }
+
+            .app-sidebar {
+                position: fixed;
+                top: 0; left: 0;
+                width: 240px;
+                height: 100vh;
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+                z-index: 200;
+                flex-direction: column;
+                align-items: stretch;
+                box-shadow: 4px 0 18px rgba(0,0,0,.25);
+            }
+            .app-sidebar.mobile-open { transform: translateX(0); }
+
+            .app-nav { flex-direction: column; overflow-x: visible; padding: 18px 10px 4px; }
+            .app-nav-section { display: block; }
+            .app-nav-item { padding: 10px 12px; flex-shrink: 1; }
             .app-nav-item:hover { transform: none; }
-            .app-nav-item.active::before { left: 50%; top: auto; bottom: 0; transform: translateX(-50%); width: 18px; height: 3px; border-radius: 3px 3px 0 0; }
-            .app-sidebar-footer { border-top: none; padding: 10px 14px; }
+            .app-nav-item.active::before { left: -10px; top: 50%; bottom: auto; transform: translateY(-50%); width: 3px; height: 18px; border-radius: 0 3px 3px 0; }
+            .app-sidebar-footer { border-top: 1px solid rgba(255,255,255,.12); padding: 14px 16px; }
+
+            /* Dimmed backdrop behind the open sidebar, closes it on tap */
+            .mobile-sidebar-backdrop {
+                display: none;
+                position: fixed; inset: 0;
+                background: rgba(0,0,0,.4);
+                z-index: 150;
+            }
+            .mobile-sidebar-backdrop.show { display: block; }
         }
         /* Auth pages (login/register/rules) render full-bleed, no sidebar */
         body.auth-page .app-topbar { display: none; }
@@ -405,6 +457,9 @@
         $onAdminDash = request()->is('dashboard/admin');
     @endphp
     <div class="app-topbar">
+        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
         <div class="app-topbar-brand"><span class="app-topbar-brand-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
   <path d="M11.7 2.805a.75.75 0 0 1 .6 0A60.65 60.65 0 0 1 22.83 8.72a.75.75 0 0 1-.231 1.337 49.948 49.948 0 0 0-9.902 3.912l-.003.002c-.114.06-.227.119-.34.18a.75.75 0 0 1-.707 0A50.88 50.88 0 0 0 7.5 12.173v-.224c0-.131.067-.248.172-.311a54.615 54.615 0 0 1 4.653-2.52.75.75 0 0 0-.65-1.352 56.123 56.123 0 0 0-4.78 2.589 1.858 1.858 0 0 0-.859 1.228 49.803 49.803 0 0 0-4.634-1.527.75.75 0 0 1-.231-1.337A60.653 60.653 0 0 1 11.7 2.805Z" />
@@ -474,6 +529,7 @@
                 </div>
             </div>
         </aside>
+        <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop"></div>
         <main class="app-main">
             <div class="content-col">
                 @yield('content')
@@ -578,19 +634,27 @@ function initNotificationChannel() {
             console.error('Notification channel subscription error:', error);
         });
 }
-        // Mobile hamburger menu: nav sits collapsed in normal document flow
-        // (see the 760px query) and this just toggles it open/closed. No-op
-        // on desktop since the button is display:none there.
+        // Mobile hamburger menu: sidebar sits fixed off-screen (see the
+        // 760px query) and this toggles it into view along with a dimmed
+        // backdrop. No-op on desktop since the button is display:none there.
         document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
-            const nav = document.querySelector('.app-nav');
+            const sidebar = document.querySelector('.app-sidebar');
+            const backdrop = document.getElementById('mobileSidebarBackdrop');
             const btn = document.getElementById('mobileMenuToggle');
-            if (!nav || !btn) return;
-            const isOpen = nav.classList.toggle('mobile-open');
+            if (!sidebar || !btn) return;
+            const isOpen = sidebar.classList.toggle('mobile-open');
+            backdrop?.classList.toggle('show', isOpen);
             btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+        document.getElementById('mobileSidebarBackdrop')?.addEventListener('click', () => {
+            document.querySelector('.app-sidebar')?.classList.remove('mobile-open');
+            document.getElementById('mobileSidebarBackdrop')?.classList.remove('show');
+            document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
         });
         document.querySelectorAll('.app-nav-item').forEach(item => {
             item.addEventListener('click', () => {
-                document.querySelector('.app-nav')?.classList.remove('mobile-open');
+                document.querySelector('.app-sidebar')?.classList.remove('mobile-open');
+                document.getElementById('mobileSidebarBackdrop')?.classList.remove('show');
                 document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
             });
         });

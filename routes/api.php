@@ -67,6 +67,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------------------
     // 5.3 Topic Management and Export Module
     // -------------------------------------------------------------
+
+
+  Route::get('/groups/{group}/topics/categories', [TopicController::class, 'categories']);
+  
     Route::get('/topics', [TopicController::class, 'index']);
     Route::get('/groups/{group}/topics', [TopicController::class, 'index'])
         ->middleware('blacklist');
