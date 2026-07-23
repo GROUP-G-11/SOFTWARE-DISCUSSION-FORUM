@@ -534,9 +534,11 @@
                                 </div>
                             ` : ''}
                         </div>
-                        ${joined
+                       ${joined
                             ? '<span class="badge role-student">Joined</span>'
-                            : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`
+                            : (g.has_pending_request
+                                ? '<span class="badge" style="background:#f59e0b; color:#fff;">Pending</span>'
+                                : `<button type="button" class="join-btn" onclick="joinGroupInline(event, ${g.group_id})">Join</button>`)
                         }
                     </div>
                 </div>
@@ -975,8 +977,74 @@ window.showNotMemberNotice = showNotMemberNotice;
             </div>
             </div>
         `).join('');
+     adminGroups.forEach(g => loadJoinRequests(g.group_id,  g.name));
     }
 
+    
+       // A small rotating palette for the avatar initials circle, picked by a
+    // hash of the person's name so the same person always gets the same
+    // color across reloads (rather than random flicker on every re-render).
+    const AVATAR_PALETTE = [
+        ['#0d9488', '#0f766e'], // teal
+        ['#ec4899', '#be185d'], // pink
+        ['#6366f1', '#4338ca'], // indigo
+        ['#f59e0b', '#b45309'], // amber
+        ['#f97316', '#c2410c'], // orange
+    ];
+
+    function avatarGradientFor(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+        const [c1, c2] = AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
+        return `linear-gradient(135deg, ${c1}, ${c2})`;
+    }
+
+    function initialsFor(name) {
+        return name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?';
+    }
+
+    async function loadJoinRequests(groupId, groupName) {
+        const el = document.getElementById(`joinRequests-${groupId}`);
+        if (!el) return;
+        const requests = await api(`/groups/${groupId}/join-requests`) || [];
+        if (!requests.length) {
+            el.innerHTML = '<div class="muted" style="padding:8px 0;">No pending join requests.</div>';
+            return;
+        }
+        el.innerHTML = `<div style="font-weight:700; margin-bottom:8px; color:var(--ink);">🔔 Pending requests (${requests.length})</div>` +
+            requests.map(r => {
+                const name = r.user ? (r.user.full_name || r.user.name) : 'Unknown user';
+                return `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; margin-bottom:8px; border-radius:12px; background:var(--paper-dim); border-left:4px solid transparent; border-image:${avatarGradientFor(name)} 1;">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                        <div style="width:36px; height:36px; border-radius:50%; flex-shrink:0; background:${avatarGradientFor(name)}; color:#fff; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center;">
+                            ${initialsFor(name)}
+                        </div>
+                        <div style="min-width:0;">
+                            <div style="font-weight:600; color:var(--ink);">${name}</div>
+                            <div style="font-size:12.5px; color:var(--slate);">
+                                wants to join
+                                <span style="display:inline-block; padding:2px 9px; margin-left:4px; border-radius:999px; background:var(--gradient-brand); color:#fff; font-weight:600; font-size:11.5px;">${groupName}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:6px; flex-shrink:0;">
+                        <button type="button" class="btn" style="padding:5px 12px; font-size:12px;" onclick="resolveJoinRequest(${groupId}, ${r.join_request_id}, 'approve')">✓ Approve</button>
+                        <button type="button" class="btn secondary" style="padding:5px 12px; font-size:12px;" onclick="resolveJoinRequest(${groupId}, ${r.join_request_id}, 'decline')">✕ Decline</button>
+                    </div>
+                </div>
+            `;
+            }).join('');
+    }
+
+    async function resolveJoinRequest(groupId, requestId, action) {
+        const res = await api(`/groups/${groupId}/join-requests/${requestId}/${action}`, { method: 'POST' });
+        if (res && res.message) alert(res.message);
+        loadJoinRequests(groupId);
+    }
+    window.resolveJoinRequest = resolveJoinRequest;
+
+    
     // ---- Topics list: search + category filter + pagination, mirroring
     // index.blade.php's loadTopics()/loadCategories(). ----
     async function loadBrowseTopics(reset = true) {
@@ -1495,7 +1563,7 @@ window.showNotMemberNotice = showNotMemberNotice;
         const grade = await api(`/groups/${g.group_id}/my-grade`);
         if (!grade) return '';
             return `
-                <div class="card">
+                <div class="card card-item">
                     <strong>${grade.group}</strong>
                     <div class="muted">Participation: ${Number(grade.participation_total).toFixed(2)} · Quizzes: ${Number(grade.quiz_total).toFixed(2)}</div>
                     <div><strong>Overall total: ${Number(grade.overall_total).toFixed(2)}</strong></div>
