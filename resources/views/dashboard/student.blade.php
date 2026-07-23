@@ -1622,7 +1622,7 @@ window.showNotMemberNotice = showNotMemberNotice;
                 action = '<span class="muted">Quiz closed — no attempt submitted.</span>';
             }
             return `
-                <div class="card">
+                <div class="card card-item">
                     <strong>${q.title}</strong> <span class="muted">(${groupName})</span>
                     <div class="muted">Status: ${q.status}</div>
                     <div style="margin-top: 8px;">${action}</div>
