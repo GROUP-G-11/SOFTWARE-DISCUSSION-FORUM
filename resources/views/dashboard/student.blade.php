@@ -976,6 +976,8 @@ window.showNotMemberNotice = showNotMemberNotice;
                 </a>
             </div>
             </div>
+             <div id="joinRequests-${g.group_id}" class="muted" style="margin-top:12px; font-size:13px;">Loading join requests…</div>
+           </div>
         `).join('');
      adminGroups.forEach(g => loadJoinRequests(g.group_id,  g.name));
     }
