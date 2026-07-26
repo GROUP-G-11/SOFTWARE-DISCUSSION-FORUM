@@ -670,12 +670,7 @@ function closeCreateGroupModalOnOuterClick(event) {
     // ---- Topics view now includes search box + category filter + load-more,
     // borrowed from the standalone group-topics page (index.blade.php). ----
     function topicsViewHtml() {
-        // Group admins get a quick shortcut straight to their group statistics
-        // page without having to leave the drill-down view (the full stats
-        // link still also lives in the "Group Admin" sidebar panel). It
-        // lives inline with the Members / New Topic actions (last in the
-        // row), using the same "btn secondary" sizing as the other action
-        // buttons.
+       
         const statsShortcut = isGroupAdmin(activeBrowseGroupId)
             ? `<a class="btn secondary" href="/groups/${activeBrowseGroupId}/statistics">View statistics</a>`
             : '';
