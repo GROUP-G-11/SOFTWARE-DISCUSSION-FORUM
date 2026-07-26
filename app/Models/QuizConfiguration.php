@@ -5,9 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * QuizConfiguration - schedule and settings for a Quiz. See SDD 4.2 "QuizConfiguration" table.
- */
 class QuizConfiguration extends Model
 {
     protected $table = 'quiz_configurations';
