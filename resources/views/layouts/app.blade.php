@@ -440,9 +440,7 @@
         .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(28,43,51,.08); }
         .stat-card .value { font-size: 26px; font-weight: 700; color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .stat-card .label { font-size: 12px; color: var(--slate); text-transform: uppercase; letter-spacing: .04em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        /* Panel headings inside a dashboard tab - a small accent rule underneath
-           ties back to the sidebar's active-item marker, so the same visual
-           language (a short teal bar) means "you are here" everywhere. */
+       
         .panel-title {
             display: flex; align-items: center; justify-content: space-between; gap: 12px;
             margin: 0 0 18px; padding-bottom: 10px;
