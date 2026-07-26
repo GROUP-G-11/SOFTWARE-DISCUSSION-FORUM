@@ -59,11 +59,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    /**
-     * Authenticate User use case (SDD Table 29).
-     * Blocks suspended (blacklisted) accounts and issues an API token
-     * carrying the user's role, mirroring the JWT payload described in the SDD.
-     */
+   
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
