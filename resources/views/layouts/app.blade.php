@@ -726,14 +726,6 @@ function initNotificationChannel() {
         });
 
         
-
-        // Shared current-user/role lookup. Every dashboard page calls this
-        // once on load rather than re-implementing its own /me + role logic.
-        // NOTE: this only decides what the *page* shows - the real
-        // enforcement always happens server-side (role:* middleware / the
-        // per-group authorization check in StatisticsController). Hiding a
-        // nav link or section here is a UX convenience, not a security
-        // boundary, exactly like the rest of this app's API calls.
         window.CURRENT_USER = null;
         window.CURRENT_ROLE = 'student'; // 'student' | 'lecturer' | 'administrator'
 
