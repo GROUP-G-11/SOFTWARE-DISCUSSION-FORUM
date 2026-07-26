@@ -527,7 +527,10 @@
             </div>
             <nav class="app-nav">
                 <div class="app-nav-section">Workspace</div>
-                <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-groups' || !$panel)) || ($onAdminDash && $panel === 'panel-groups') ? 'active' : '' }}">
+                <a href="/dashboard?panel=panel-home" data-dash-panel="panel-home" data-role="student,lecturer" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-home' || !$panel)) ? 'active' : '' }}">
+                    <span class="icon">🏠</span> Home
+                </a>
+                <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && $panel === 'panel-groups') || ($onAdminDash && ($panel === 'panel-groups' || !$panel)) ? 'active' : '' }}">
                     <span class="icon">👥</span> Groups
                 </a>
                 <!--a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ (request()->is('groups/*') || request()->is('topics/*')) ? 'active' : '' }}">
