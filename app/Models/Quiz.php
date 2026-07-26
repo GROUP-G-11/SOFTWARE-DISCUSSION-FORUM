@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-/**
- * Quiz - one quiz set up by a lecturer. See SDD 4.2 "Quiz" table and 5.5 Quiz Engine Module.
- */
 class Quiz extends Model
 {
     protected $table = 'quizzes';
