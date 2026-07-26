@@ -1915,7 +1915,7 @@
             });
         });
     }
-
+// function for scoring criteria
     async function loadCriteriaList(groupId) {
         const listEl = document.getElementById('criteriaList');
         if (!groupId) { listEl.textContent = 'Select a group above.'; return; }
