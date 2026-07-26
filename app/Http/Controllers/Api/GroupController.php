@@ -11,10 +11,6 @@ use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
  
-/**
- * Group management (supports SDD 5.1 On-boarding and 5.2 Moderation modules,
- * since groups own the inactivity/blacklist configuration).
- */
 class GroupController extends Controller
 {
     public function __construct(private NotificationService $notifications)
