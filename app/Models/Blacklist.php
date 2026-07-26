@@ -13,9 +13,6 @@ class Blacklist extends Model
     protected $table = 'blacklists';
     protected $primaryKey = 'blacklist_id';
 
-    // A blacklist is either 'manual' (an admin/lecturer action), 'inactivity'
-    // (ModerationController::scanInactivity() — locks the whole account),
-    // or 'flag' (HandlesFlagAutoBlacklist — suspends from one group only).
     public const REASON_MANUAL = 'manual';
     public const REASON_INACTIVITY = 'inactivity';
     public const REASON_FLAG = 'flag';
