@@ -1494,10 +1494,7 @@ window.showNotMemberNotice = showNotMemberNotice;
         }
     }
     window.confirmForward = confirmForward;
-    /*--------------------------------------------------------*/
-    // Delegated: both forms are re-created whenever renderGroupsBrowser()
-    // swaps views, so we listen on the always-present container instead of
-    // binding directly to elements that come and go.
+   
     document.getElementById('groupsBrowserContent').addEventListener('submit', async (e) => {
         if (e.target && e.target.id === 'createGroupForm') {
             e.preventDefault();
