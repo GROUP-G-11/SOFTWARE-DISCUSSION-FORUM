@@ -9,11 +9,6 @@ use App\Models\QuizAttempt;
 use App\Models\ScoringCriteria;
 use Illuminate\Http\Request;
 
-/**
- * Grading and Participation Module (SDD 5.6) - lecturer-facing scoring
- * rule management. Instant grade updates themselves happen inline in
- * PostController/ReplyController/QuizAttemptController via TracksParticipation.
- */
 class GradingController extends Controller
 {
     public function storeCriteria(Request $request, Group $group)
