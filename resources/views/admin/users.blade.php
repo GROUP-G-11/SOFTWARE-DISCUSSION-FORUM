@@ -3,7 +3,7 @@
 @section('title', 'Manage Users')
 
 @section('content')
-<!-- <div class="eyebrow"><a href="/dashboard/admin" style="color: inherit;">← Administrator Dashboard</a></div> -->
+
 <h1>Manage Users</h1>
 
 <div class="card">
