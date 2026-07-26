@@ -24,7 +24,8 @@
             --seal-dim: #fef3c7;
             --sky: #6366f1;
             --sky-dim: #eef0ff;
-            --gradient-brand: linear-gradient(135deg, var(--accent) 0%, var(--sky) 55%, var(--accent-2) 100%);
+           --gradient-brand: linear-gradient(135deg, #0f766e 0%, #3730a3 100%);
+            
             --radius: 14px;
             --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             --serif: 'Iowan Old Style', 'Georgia', serif;
