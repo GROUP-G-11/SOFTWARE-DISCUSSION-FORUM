@@ -254,9 +254,7 @@
         @media (max-width: 760px) {
             .mobile-menu-toggle { display: inline-flex; }
             .app-shell { flex-direction: column; }
-            /* The sidebar becomes a fixed-position drawer that slides in
-               from the left over the content, rather than squeezing into
-               the page as a horizontal strip. Closed by default. */
+          
             .app-sidebar {
                 position: fixed;
                 top: 0; left: 0;
