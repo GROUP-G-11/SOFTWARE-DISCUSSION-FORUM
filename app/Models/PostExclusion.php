@@ -5,10 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * PostExclusion - hides a post from specific members (selective communication).
- * See SDD 4.2 "PostExclusion" table.
- */
 class PostExclusion extends Model
 {
     protected $table = 'post_exclusions';
