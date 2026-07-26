@@ -10,20 +10,22 @@
  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 
     <style>
-        :root {
-            --ink: #1c2b33;
-            --slate: #3d5a6c;
-            --paper: #f6f4ee;
-            --paper-dim: #ece8db;
-            --accent: #2f6f5e;
-            --accent-dark: #204b3f;
-            --warn: #b3542e;
-            --line: #d8d2c4;
-            --seal: #a8792f;
-            --seal-dim: #f2e8d5;
-            --sky: #2a5a72;
-            --sky-dim: #e6edf1;
-            --radius: 6px;
+       :root {
+            --ink: #211b3d;
+            --slate: #5b5a8d;
+            --paper: #fdfaf6;
+            --paper-dim: #f3ecff;
+            --accent: #0d9488;
+            --accent-dark: #0f766e;
+            --accent-2: #ec4899;
+            --warn: #f97316;
+            --line: #e4defc;
+            --seal: #f59e0b;
+            --seal-dim: #fef3c7;
+            --sky: #6366f1;
+            --sky-dim: #eef0ff;
+            --gradient-brand: linear-gradient(135deg, var(--accent) 0%, var(--sky) 55%, var(--accent-2) 100%);
+            --radius: 14px;
             --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             --serif: 'Iowan Old Style', 'Georgia', serif;
             --mono: ui-monospace, 'SF Mono', 'Courier New', monospace;
@@ -146,7 +148,30 @@
         }
         /* Hamburger toggle: only ever shown on mobile (see the 760px query
            below). Hidden here so it takes no space/has no effect on desktop. */
-        .mobile-menu-toggle { display: none; }
+        .mobile-menu-toggle {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            width: 34px;
+            height: 34px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .mobile-menu-toggle span {
+            display: block;
+            width: 22px;
+            height: 2px;
+            background: var(--ink);
+            border-radius: 2px;
+            transition: transform .2s ease, opacity .2s ease;
+        }
+        .mobile-menu-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+        .mobile-menu-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
+        .mobile-menu-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
         .app-nav { display: flex; flex-direction: column; padding: 18px 10px 4px; overflow-y: auto; flex: 1; }
         .app-nav-section {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -175,10 +200,10 @@
         }
         .app-nav-item:hover { opacity: 1; background: rgba(255,255,255,.07); transform: translateX(2px); }
         .app-nav-item:hover .icon { transform: scale(1.1); }
-        .app-nav-item.active { opacity: 1; background: rgba(47,111,94,.22); font-weight: 600; }
+        .app-nav-item.active { opacity: 1; background: linear-gradient(90deg, rgba(13,148,136,.3), rgba(236,72,153,.18)); font-weight: 600; }
         .app-nav-item.active::before {
             content: ''; position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
-            width: 3px; height: 18px; background: var(--accent); border-radius: 0 3px 3px 0;
+            width: 3px; height: 18px; background: var(--gradient-brand); border-radius: 0 3px 3px 0;
         }
         .app-sidebar-footer {
             display: flex; align-items: center; gap: 10px;
@@ -229,14 +254,43 @@
             min-height: calc(100vh - 65px);
         }
         @media (max-width: 760px) {
-            .app-shell { flex-direction: column; }
-            .app-sidebar { width: 100%; height: auto; position: static; flex-direction: row; align-items: center; }
-            .app-nav { flex-direction: row; overflow-x: auto; padding: 0 6px; }
-            .app-nav-section { display: none; }
-            .app-nav-item { padding: 10px 12px; flex-shrink: 0; }
+            .app-topbar { padding: 12px 16px; }
+            .app-topbar-brand { font-size: 14px; }
+            .app-topbar-welcome { font-size: 13px; }
+
+            .mobile-menu-toggle { display: flex; }
+
+            .app-shell { flex-direction: column; position: relative; }
+
+            .app-sidebar {
+                position: fixed;
+                top: 0; left: 0;
+                width: 240px;
+                height: 100vh;
+                transform: translateX(-100%);
+                transition: transform .25s ease;
+                z-index: 200;
+                flex-direction: column;
+                align-items: stretch;
+                box-shadow: 4px 0 18px rgba(0,0,0,.25);
+            }
+            .app-sidebar.mobile-open { transform: translateX(0); }
+
+            .app-nav { flex-direction: column; overflow-x: visible; padding: 18px 10px 4px; }
+            .app-nav-section { display: block; }
+            .app-nav-item { padding: 10px 12px; flex-shrink: 1; }
             .app-nav-item:hover { transform: none; }
-            .app-nav-item.active::before { left: 50%; top: auto; bottom: 0; transform: translateX(-50%); width: 18px; height: 3px; border-radius: 3px 3px 0 0; }
-            .app-sidebar-footer { border-top: none; padding: 10px 14px; }
+            .app-nav-item.active::before { left: -10px; top: 50%; bottom: auto; transform: translateY(-50%); width: 3px; height: 18px; border-radius: 0 3px 3px 0; }
+            .app-sidebar-footer { border-top: 1px solid rgba(255,255,255,.12); padding: 14px 16px; }
+
+            /* Dimmed backdrop behind the open sidebar, closes it on tap */
+            .mobile-sidebar-backdrop {
+                display: none;
+                position: fixed; inset: 0;
+                background: rgba(0,0,0,.4);
+                z-index: 150;
+            }
+            .mobile-sidebar-backdrop.show { display: block; }
         }
         /* Auth pages (login/register/rules) render full-bleed, no sidebar */
         body.auth-page .app-topbar { display: none; }
@@ -244,39 +298,70 @@
         body.auth-page .app-main { padding: 0; }
         h1, h2, h3 { font-family: 'Iowan Old Style', Georgia, serif; color: var(--ink); }
         .card {
+            position: relative;
             background: #fff;
             border: 1px solid var(--line);
             border-radius: var(--radius);
-            padding: 20px 22px;
+            padding: 22px 24px;
             margin-bottom: 16px;
-            box-shadow: 0 1px 2px rgba(28,43,51,.04);
-            transition: box-shadow .18s ease, border-color .18s ease;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(99,102,241,.06);
+            transition: box-shadow .2s ease, transform .2s ease;
+        }
+        
+        .card:hover {
+            box-shadow: 0 8px 20px rgba(99,102,241,.14);
+            transform: translateY(-2px);
         }
 
+        /* Smaller nested "item" cards (a single grade/quiz/notification/group
+           row inside a bigger panel) get a quieter, muted-color treatment
+           instead of the bold top gradient — a soft tinted left border
+           feels intentional without competing with the section card
+           that contains them. */
+        .card.card-item {
+            padding: 16px 18px;
+            border-left: 4px solid var(--sky);
+            background: var(--sky-dim);
+            box-shadow: none;
+        }
+        .card.card-item::before { display: none; }
+        .card.card-item:hover {
+            transform: none;
+            box-shadow: 0 2px 6px rgba(99,102,241,.08);
+        }
+        /* A couple of alternating tints so a list of these doesn't look
+           monotonous — cycle by nth-child within any list container. */
+        .card.card-item:nth-child(3n+2) { border-left-color: var(--accent); background: #eafaf7; }
+        .card.card-item:nth-child(3n+3) { border-left-color: var(--accent-2); background: #f9fdf0; }
+        
         .panel-lecturer { border-left: 4px solid var(--warn); }
         .panel-student { border-left: 4px solid var(--sky); background: var(--sky-dim); }
         .panel-create { border-left: 4px solid var(--accent-dark); }
 
-        .btn {
+       .btn {
             display: inline-block;
             font-family: var(--sans);
-            background: var(--accent);
+            background: var(--gradient-brand);
+            background-size: 180% 180%;
+            background-position: 0% 50%;
             color: #fff;
             border: none;
             padding: 10px 18px;
-            border-radius: var(--radius);
+            border-radius: 999px;
             cursor: pointer;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 700;
             text-decoration: none;
-            transition: background .15s ease, transform .1s ease, box-shadow .15s ease;
+            transition: background-position .35s ease, transform .12s ease, box-shadow .2s ease;
         }
-        .btn:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 4px 10px rgba(32,75,63,.25); }
+        .btn:hover { background-position: 100% 50%; transform: translateY(-2px); box-shadow: 0 6px 16px rgba(99,102,241,.35); }
         .btn:active { transform: translateY(0); box-shadow: none; }
-        .btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); box-shadow: none; }
-        .btn.secondary:hover { background: rgba(47,111,94,.08); box-shadow: none; }
+        .btn.secondary { background: #fff; color: var(--accent-dark); border: 1.5px solid var(--accent); box-shadow: none; }
+        .btn.secondary:hover { background: var(--paper-dim); box-shadow: none; transform: translateY(-1px); }
         .btn.warn { background: var(--warn); }
-        .btn.warn:hover { background: #8f3f21; box-shadow: 0 4px 10px rgba(143,63,33,.25); }
+        .btn.warn:hover { background: #ea580c; box-shadow: 0 6px 16px rgba(249,115,22,.35); }
+        
         input, textarea, select {
             width: 100%;
             font-family: var(--sans);
@@ -333,11 +418,12 @@
             margin-bottom: 16px;
         }
         .stat-card {
-            background: #fff;
-            border: 1px solid var(--line);
+            background: #faf6ef;
+            border: 1px solid #ecdfc8;
             border-radius: var(--radius);
             padding: 14px 16px;
             transition: transform .15s ease, box-shadow .15s ease;
+    
         }
         .stat-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(28,43,51,.08); }
         .stat-card .value { font-size: 26px; font-weight: 700; color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
@@ -405,20 +491,27 @@
         $onAdminDash = request()->is('dashboard/admin');
     @endphp
     <div class="app-topbar">
+        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
         <div class="app-topbar-brand"><span class="app-topbar-brand-icon">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
   <path d="M11.7 2.805a.75.75 0 0 1 .6 0A60.65 60.65 0 0 1 22.83 8.72a.75.75 0 0 1-.231 1.337 49.948 49.948 0 0 0-9.902 3.912l-.003.002c-.114.06-.227.119-.34.18a.75.75 0 0 1-.707 0A50.88 50.88 0 0 0 7.5 12.173v-.224c0-.131.067-.248.172-.311a54.615 54.615 0 0 1 4.653-2.52.75.75 0 0 0-.65-1.352 56.123 56.123 0 0 0-4.78 2.589 1.858 1.858 0 0 0-.859 1.228 49.803 49.803 0 0 0-4.634-1.527.75.75 0 0 1-.231-1.337A60.653 60.653 0 0 1 11.7 2.805Z" />
   <path d="M13.06 15.473a48.45 48.45 0 0 1 7.666-3.282c.134 1.414.22 2.843.255 4.284a.75.75 0 0 1-.46.711 47.87 47.87 0 0 0-8.105 4.342.75.75 0 0 1-.832 0 47.87 47.87 0 0 0-8.104-4.342.75.75 0 0 1-.461-.71c.035-1.442.121-2.87.255-4.286.921.304 1.83.634 2.726.99v1.27a1.5 1.5 0 0 0-.14 2.508c-.09.38-.222.753-.397 1.11.452.213.901.434 1.346.66a6.727 6.727 0 0 0 .551-1.607 1.5 1.5 0 0 0 .14-2.67v-.645a48.549 48.549 0 0 1 3.44 1.667 2.25 2.25 0 0 0 2.12 0Z" />
   <path d="M4.462 19.462c.42-.419.753-.89 1-1.395.453.214.902.435 1.347.662a6.742 6.742 0 0 1-1.286 1.794.75.75 0 0 1-1.06-1.06Z" />
 </svg>
+
         </span> Smart Discussion Forum</div>
         <div class="app-topbar-welcome" id="topbarWelcome">&nbsp;</div>
     </div>
     <div class="app-shell">
         <aside class="app-sidebar">
             <nav class="app-nav">
-                <div class="app-nav-section">Workspace</div>
-                <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-groups' || !$panel)) || ($onAdminDash && $panel === 'panel-groups') ? 'active' : '' }}">
+              <div class="app-nav-section">Workspace</div>
+                <a href="/dashboard?panel=panel-home" data-dash-panel="panel-home" data-role="student,lecturer" class="app-nav-item {{ ($onDashboard && !$onAdminDash && ($panel === 'panel-home' || !$panel)) ? 'active' : '' }}">
+                    <span class="icon">🏠</span> Home
+                </a>
+                <a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ ($onDashboard && !$onAdminDash && $panel === 'panel-groups') || ($onAdminDash && ($panel === 'panel-groups' || !$panel)) ? 'active' : '' }}">
                     <span class="icon">👥</span> Groups
                 </a>
                 <!--a href="/dashboard?panel=panel-groups" data-dash-panel="panel-groups" data-role="student,lecturer,administrator" class="app-nav-item {{ (request()->is('groups/*') || request()->is('topics/*')) ? 'active' : '' }}">
@@ -473,6 +566,7 @@
                 </div>
             </div>
         </aside>
+        <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop"></div>
         <main class="app-main">
             <div class="content-col">
                 @yield('content')
@@ -577,19 +671,27 @@ function initNotificationChannel() {
             console.error('Notification channel subscription error:', error);
         });
 }
-        // Mobile hamburger menu: nav sits collapsed in normal document flow
-        // (see the 760px query) and this just toggles it open/closed. No-op
-        // on desktop since the button is display:none there.
+        // Mobile hamburger menu: sidebar sits fixed off-screen (see the
+        // 760px query) and this toggles it into view along with a dimmed
+        // backdrop. No-op on desktop since the button is display:none there.
         document.getElementById('mobileMenuToggle')?.addEventListener('click', () => {
-            const nav = document.querySelector('.app-nav');
+            const sidebar = document.querySelector('.app-sidebar');
+            const backdrop = document.getElementById('mobileSidebarBackdrop');
             const btn = document.getElementById('mobileMenuToggle');
-            if (!nav || !btn) return;
-            const isOpen = nav.classList.toggle('mobile-open');
+            if (!sidebar || !btn) return;
+            const isOpen = sidebar.classList.toggle('mobile-open');
+            backdrop?.classList.toggle('show', isOpen);
             btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        });
+        document.getElementById('mobileSidebarBackdrop')?.addEventListener('click', () => {
+            document.querySelector('.app-sidebar')?.classList.remove('mobile-open');
+            document.getElementById('mobileSidebarBackdrop')?.classList.remove('show');
+            document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
         });
         document.querySelectorAll('.app-nav-item').forEach(item => {
             item.addEventListener('click', () => {
-                document.querySelector('.app-nav')?.classList.remove('mobile-open');
+                document.querySelector('.app-sidebar')?.classList.remove('mobile-open');
+                document.getElementById('mobileSidebarBackdrop')?.classList.remove('show');
                 document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
             });
         });
@@ -600,8 +702,6 @@ function initNotificationChannel() {
             localStorage.removeItem('sdf_token');
             window.location = '/';
         });
-
-        
 
         // Shared current-user/role lookup. Every dashboard page calls this
         // once on load rather than re-implementing its own /me + role logic.

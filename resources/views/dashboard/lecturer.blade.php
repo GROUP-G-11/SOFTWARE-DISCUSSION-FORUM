@@ -195,6 +195,7 @@
         display: flex; flex-direction: column; gap: 4px;
         background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
         padding: 16px; min-height: 260px; flex: 1;
+         overflow-y: auto;
     }
     .msg-group { display: flex; flex-direction: column; margin: 10px 0; max-width: 78%; }
     .msg-group.mine { align-self: flex-end; align-items: flex-end; }
@@ -303,6 +304,46 @@
 
 <div class="dash-shell">
     <div class="dash-main">
+
+    <!-- ================= HOME ================= -->
+        <div class="dash-panel" id="panel-home">
+            <div class="card" style="background: var(--gradient-brand); border: none; color: #fff; padding: 32px 30px;">
+                <h1 id="homeGreeting" style="margin:0 0 6px; font-size: 26px; font-family: var(--serif);">Welcome back!</h1>
+                <p style="margin:0; opacity:.9; font-size:14.5px;">Here's a snapshot of your groups and quizzes.</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin: 18px 0;">
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatGroups">–</div>
+                    <div class="muted" style="font-size:12.5px;">Groups you manage</div>
+                </div>
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatQuizzes">–</div>
+                    <div class="muted" style="font-size:12.5px;">Your quizzes</div>
+                </div>
+                <div class="card card-item" style="text-align:center;">
+                    <div style="font-size:26px; font-weight:800; color:var(--ink);" id="homeStatNotifs">–</div>
+                    <div class="muted" style="font-size:12.5px;">Unread notifications</div>
+                </div>
+            </div>
+
+            <div class="section-title"><h2 style="margin:0;">Quick links</h2></div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                <a href="/dashboard?panel=panel-groups" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">👥 Groups</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Manage groups & join requests</div>
+                </a>
+                <a href="/dashboard?panel=panel-quizzes" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">📝 Quizzes</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Create and review quizzes</div>
+                </a>
+                <a href="/dashboard?panel=panel-criteria" class="card card-item" style="text-decoration:none; display:block;">
+                    <strong style="color:var(--ink);">📊 Scoring Criteria</strong>
+                    <div class="muted" style="font-size:12.5px; margin-top:4px;">Set grading rules per group</div>
+                </a>
+            </div>
+        </div>
+
         <!-- ================= MY GROUPS ================= -->
         <div class="dash-panel" id="panel-groups">
             
@@ -685,16 +726,97 @@
         });
     }
 
-    async function joinGroupInline(event, groupId) {
+   async function joinGroupInline(event, groupId) {
         event.stopPropagation();
-        const res = await api(`/groups/${groupId}/join`, { method: 'POST' });
-        if (res && (res.message || res.status === 'success' || !res.error)) {
-            await loadGroups();
-        } else {
-            alert(res?.error || res?.message || 'Could not join this group.');
-        }
+        const ok = window.confirm('By joining, you agree to the group rules (see /group-rules). Continue?');
+        if (!ok) return;
+        const res = await api(`/groups/${groupId}/join`, { method: 'POST', body: { rules_accepted: true } });
+        if (res && res.message) alert(res.message);
+        await loadGroups();
     }
     window.joinGroupInline = joinGroupInline;
+ 
+
+    // A small fixed palette of gradient pairs so each requester's avatar
+    // gets a distinct, cheerful color instead of every avatar looking the
+    // same — picked deterministically from their name so it's stable
+    // across re-renders, not random each time.
+    const AVATAR_GRADIENTS = [
+        ['#0d9488', '#6366f1'], // teal -> indigo
+        ['#ec4899', '#f59e0b'], // pink -> amber
+        ['#6366f1', '#ec4899'], // indigo -> pink
+        ['#f97316', '#ec4899'], // orange -> pink
+        ['#0d9488', '#f59e0b'], // teal -> amber
+    ];
+
+    function gradientForName(name) {
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+        const [from, to] = AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length];
+        return `linear-gradient(135deg, ${from}, ${to})`;
+    }
+
+    function initialsFor(name) {
+        const parts = name.trim().split(/\s+/);
+        return ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase() || '?';
+    }
+
+    async function loadJoinRequests(groupId, groupName) {
+        const el = document.getElementById(`joinRequests-${groupId}`);
+        if (!el) return;
+        const requests = await api(`/groups/${groupId}/join-requests`) || [];
+
+        if (!requests.length) {
+            el.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; padding:10px 0; color:var(--slate); font-size:13px;">
+                    <span style="font-size:16px;">✅</span> No pending join requests right now.
+                </div>`;
+            return;
+        }
+
+        el.innerHTML = `
+            <div style="font-weight:700; font-size:13px; color:var(--slate); margin:10px 0 8px; display:flex; align-items:center; gap:6px;">
+                <span style="background: var(--gradient-brand); color:#fff; border-radius:999px; padding:2px 10px; font-size:12px;">${requests.length}</span>
+                Pending join request${requests.length === 1 ? '' : 's'}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                ${requests.map(r => {
+                    const name = r.user ? (r.user.full_name || r.user.name) : 'Unknown user';
+                    return `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;
+                                background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 14px;
+                                box-shadow:0 1px 4px rgba(99,102,241,.06);">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <div style="width:36px; height:36px; border-radius:50%; flex-shrink:0;
+                                        background:${gradientForName(name)}; color:#fff; font-weight:700; font-size:13px;
+                                        display:flex; align-items:center; justify-content:center;">
+                                ${initialsFor(name)}
+                            </div>
+                            <div style="min-width:0;">
+                                <div style="font-weight:600; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${name}</div>
+                                <div style="font-size:12px; color:var(--slate);">
+                                    wants to join <span style="color:var(--accent-dark); font-weight:600;">${groupName ?? 'this group'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                            <button type="button" class="btn" style="padding:6px 14px; font-size:12.5px;"
+                                onclick="resolveJoinRequest(${groupId}, ${r.join_request_id}, 'approve')">✓ Approve</button>
+                            <button type="button" class="btn secondary" style="padding:6px 14px; font-size:12.5px;"
+                                onclick="resolveJoinRequest(${groupId}, ${r.join_request_id}, 'decline')">✕ Decline</button>
+                        </div>
+                    </div>
+                `; }).join('')}
+            </div>
+        `;
+    }
+
+    async function resolveJoinRequest(groupId, requestId, action) {
+        const res = await api(`/groups/${groupId}/join-requests/${requestId}/${action}`, { method: 'POST' });
+        if (res && res.message) alert(res.message);
+        loadJoinRequests(groupId);
+    }
+    window.resolveJoinRequest = resolveJoinRequest;
 
     function showNotMemberNotice(groupId) {
         const notice = document.getElementById(`notMemberNotice-${groupId}`);
@@ -716,6 +838,8 @@
             loadGroupMembersForExclusion();
         } else {
             el.innerHTML = groupsViewHtml();
+            myGroups.filter(g => g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null) || g.is_group_admin)
+                .forEach(g => loadJoinRequests(g.group_id, g.name));
         }
     }
 
@@ -724,6 +848,7 @@
             const joined = g.is_member || g.is_group_admin || g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null);
             const isBanned = g.is_banned || g.banned;
             const isOwner = g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null);
+            const canManage = isOwner || g.is_group_admin;
 
             const clickHandler = isBanned
                 ? `alert('You are blacklisted/banned from this group.')`
@@ -755,11 +880,12 @@
                             <div class="group-subtext">
                                 ${g.description ?? ''} ${g.description ? '· ' : ''}${g.members_count ?? 0} members · ${g.topics_count ?? 0} topics
                             </div>
-                            ${!isBanned && !joined ? `
+                           ${!isBanned && !joined ? `
                                 <div id="notMemberNotice-${g.group_id}" style="display:none; color:#b45309; font-weight:600; margin-top:4px; font-size:12.5px;">
                                     You're not a member of this group yet — join to view topics.
                                 </div>
                             ` : ''}
+                            ${canManage ? `<div id="joinRequests-${g.group_id}" class="muted" style="margin-top:10px; font-size:13px;" onclick="event.stopPropagation()">Loading join requests…</div>` : ''}
                         </div>
                         <div class="group-actions">
                             ${actionButtonsHtml}
@@ -1878,16 +2004,36 @@ window.prependLiveNotification = function (e) {
     });
     renderNotifications();
 };
-    async function init() {
-        initDashSidebar(document, 'panel-groups');
+   async function init() {
+        initDashSidebar(document, 'panel-home');
         await loadWelcome();
         await loadGroups();
         loadLecturerQuizzes();
         loadNotifications();
-        handleIncomingShareLink(); // <-- add this, after loadGroups() so myGroups is populated
-
+        handleIncomingShareLink();
+        renderHomePanel();
     }
 
+    function renderHomePanel() {
+        const greeting = document.getElementById('homeGreeting');
+        if (greeting && window.CURRENT_USER) {
+            const firstName = (window.CURRENT_USER.full_name || 'there').split(' ')[0];
+            greeting.textContent = `Welcome back, ${firstName}!`;
+        }
+
+        const managedCount = myGroups.filter(g =>
+            g.admin_id === (window.CURRENT_USER ? window.CURRENT_USER.user_id : null) || g.is_group_admin
+        ).length;
+        document.getElementById('homeStatGroups').textContent = managedCount;
+
+        document.getElementById('homeStatNotifs').textContent =
+            currentNotifications.filter(n => !n.is_read).length;
+
+        api('/me/quizzes').then(quizzes => {
+            document.getElementById('homeStatQuizzes').textContent = (quizzes || []).length;
+        });
+    }
+    
     init();
 </script>
 @endsection
