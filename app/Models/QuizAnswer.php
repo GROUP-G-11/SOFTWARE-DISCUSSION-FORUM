@@ -5,10 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * QuizAnswer - the answer a student gave for one question in one attempt.
- * See SDD 4.2 "Quiz Answer" table.
- */
 class QuizAnswer extends Model
 {
     protected $table = 'quiz_answers';
