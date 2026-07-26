@@ -6,9 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/**
- * QuizAttempt - one student's try at a quiz. See SDD 4.2 "QuizAttempt" table.
- */
 class QuizAttempt extends Model
 {
     protected $table = 'quiz_attempts';
