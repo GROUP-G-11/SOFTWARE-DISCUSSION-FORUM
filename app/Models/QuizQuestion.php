@@ -6,9 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/**
- * QuizQuestion - one MCQ question inside a Quiz. See SDD 4.2 "Quiz Question" table.
- */
 class QuizQuestion extends Model
 {
     protected $table = 'quiz_questions';
