@@ -94,10 +94,6 @@ async function submitQuiz(autoSubmitted = false) {
     const resultBox = document.getElementById('result');
     resultBox.style.display = 'block';
 
-    // If this window was auto-launched by the dashboard when the quiz's
-    // configured time arrived (rather than opened by the student clicking
-    // a link themselves), close it automatically a few seconds after an
-    // auto-submit so it doesn't linger once the quiz window has ended.
     const isAutoLaunchedPopup = !!window.opener;
     const closeNote = (autoSubmitted && isAutoLaunchedPopup)
         ? ' This window will close automatically in a few seconds.'
