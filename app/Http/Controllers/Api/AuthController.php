@@ -13,12 +13,7 @@ use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
-    /**
-     * Register User use case (SDD Table 28).
-     * Step 1-2: name/email/password + rules are presented.
-     * Step 3: user must accept the rules or the request is blocked.
-     * Step 4-5: validate, hash password, store timestamped acceptance.
-     */
+    
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
