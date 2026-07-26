@@ -158,9 +158,7 @@
     }
 
     /* ================= MOBILE (phone) OVERRIDES =================
-       Scoped to <=640px only, so desktop/tablet layout above is 100%
-       untouched. Mirrors the phone mockup: stacked headers with
-       full-width buttons, wider chat bubbles, tighter chrome. */
+      
       .groups-header {    display: flex;    align-items: center;    justify-content: space-between;
     flex-wrap: wrap;    gap: 12px;    margin-bottom: 16px; }
     
