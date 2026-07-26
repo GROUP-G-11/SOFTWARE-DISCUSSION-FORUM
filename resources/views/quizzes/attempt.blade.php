@@ -35,10 +35,6 @@ async function startQuiz() {
 
     document.getElementById('quizTitle').textContent = attempt.quiz.title;
 
-    // seconds_remaining is computed server-side from the quiz's actual
-    // scheduled end time (start_time + duration_minutes), so every student
-    // sees a countdown to the same real clock moment rather than a fresh
-    // timer starting whenever they happen to click "Take quiz".
     secondsLeft = (typeof attempt.seconds_remaining === 'number')
         ? attempt.seconds_remaining
         : (attempt.quiz.configuration?.duration_minutes ?? 10) * 60;
