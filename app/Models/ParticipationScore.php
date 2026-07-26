@@ -5,10 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * ParticipationScore - marks a student earns for taking part in the discussion forum.
- * See SDD 4.2 "ParticipationScore" table.
- */
+
 class ParticipationScore extends Model
 {
     protected $table = 'participation_scores';
