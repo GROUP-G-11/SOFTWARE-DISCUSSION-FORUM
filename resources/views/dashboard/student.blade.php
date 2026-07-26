@@ -397,7 +397,7 @@
 
      //// added------------------
     let groupMembersExpanded = false;
-    let allGroupMembers = []; // cache so "show more" doesn't need another API call
+    let allGroupMembers = [];
 
     // ---- Topics-list search / filter / pagination state (borrowed from index.blade.php) ----
     let browseTopicsPage = 1;
