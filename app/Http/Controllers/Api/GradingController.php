@@ -52,11 +52,6 @@ class GradingController extends Controller
         return response()->json($scores);
     }
 
-    /**
-     * A single student's own grade breakdown for a group: their participation
-     * points per scoring criterion, plus their quiz attempt scores for any
-     * quizzes belonging to this group. Powers the "My Grades" dashboard view.
-     */
     public function myGrade(Request $request, Group $group)
     {
         $user = $request->user();
