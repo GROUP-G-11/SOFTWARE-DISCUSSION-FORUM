@@ -88,13 +88,7 @@
     display: none; align-items: center; justify-content: center; margin-left: auto;
 }
 .nav-badge.show { display: inline-flex; }
-        /* ---------- Global top bar: full-width strip above the shell ----------
-           Cream, same tone as the page background, so it reads as part of
-           the canvas rather than a separate colored banner. Holds the brand
-           on the left and the signed-in user's welcome message on the
-           right - both used to live lower down (sidebar brand row / a
-           per-dashboard <h1>) and are now consolidated up here so every
-           page gets the same top-of-screen chrome. */
+     
         .app-topbar {
             display: flex; align-items: center; justify-content: space-between;
             gap: 16px;
