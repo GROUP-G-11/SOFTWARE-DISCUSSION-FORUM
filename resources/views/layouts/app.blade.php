@@ -126,10 +126,7 @@
             .app-topbar-welcome { font-size: 13px; }
         }
         /* ---------- Global app shell: sidebar (left) + content (right) ----------
-           This is the one consistent frame every page gets via
-           @@extends('layouts.app'). Individual pages just @@yield('content')
-           into the right-hand pane; they don't need to know the sidebar
-           exists. Auth pages (login/register) opt out via a body class. */
+          */
         .app-shell { display: flex; align-items: stretch; min-height: calc(100vh - 65px); }
         .app-sidebar {
             width: 248px;
