@@ -417,6 +417,7 @@
         // 1. Wait for Laravel Echo to finish loading if it's slow. Capped at
         // 20 attempts (10s) so a genuinely missing/misconfigured Echo setup
         // fails quietly instead of retrying - and logging a warning - forever.
+        
         if (typeof window.Echo === 'undefined') {
             window._echoWaitAttempts++;
             if (window._echoWaitAttempts > 20) {
@@ -475,10 +476,7 @@
 
                 const myId = window.CURRENT_USER ? window.CURRENT_USER.user_id : null;
 
-                // Selective communication: if the backend includes the list of
-                // excluded user ids on the broadcast payload, don't render the
-                // post for anyone in it. This only works once the backend
-                // sends this field on the event - see note in code review.
+    
                 const excludedIds = (e.excluded_user_ids || e.reply?.excluded_user_ids || []).map(Number);
                 if (myId !== null && excludedIds.includes(Number(myId))) return;
 
