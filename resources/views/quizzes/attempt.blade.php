@@ -23,9 +23,7 @@ let timerHandle = null;
 async function startQuiz() {
     attempt = await api(`/quizzes/${quizId}/attempts/start`, { method: 'POST' });
 
-    // The quiz isn't startable yet/anymore (not open, blacklisted, opens later,
-    // or its scheduled window already ended) — the API returns a message and
-    // no attempt_id in that case.
+   
     if (!attempt || !attempt.attempt_id) {
         document.getElementById('quizTitle').textContent = 'Quiz unavailable';
         document.getElementById('quizForm').innerHTML = `
