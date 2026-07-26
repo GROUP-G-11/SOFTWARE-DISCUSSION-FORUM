@@ -233,6 +233,7 @@
                 </a>
             </div>
         </div>
+        
         <!-- ================= GROUP ADMIN PANEL (students who admin a group) ================= -->
         <!-- Only reachable at all when the student is an active group admin for
              at least one group - see renderGroupAdminPanel(), which is what
