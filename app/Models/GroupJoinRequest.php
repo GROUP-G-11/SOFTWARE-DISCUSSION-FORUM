@@ -5,11 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * GroupJoinRequest - a pending request from a User to join a Group,
- * requiring approval from that group's admin (owner or active GroupAdmin)
- * before a real Membership row is created.
- */
+
 class GroupJoinRequest extends Model
 {
     protected $table = 'group_join_requests';
