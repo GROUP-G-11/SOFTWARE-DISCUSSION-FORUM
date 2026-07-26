@@ -82,11 +82,7 @@ class GradingController extends Controller
         ]);
     }
 
-    /**
-     * Lecturer/Admin-facing gradebook: every member of the group with their
-     * participation total and quiz total side by side, so a lecturer can see
-     * the whole class's standing from one screen (links from the dashboard).
-     */
+
     public function gradebook(Group $group)
     {
         $members = $group->members()->get(['users.user_id', 'users.full_name']);
