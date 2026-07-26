@@ -11,12 +11,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
-/**
- * Membership and On-boarding Module (SDD 5.1).
- *
- * Handles registration (with rules acceptance), authentication (JWT/Sanctum
- * token issuance embedding the user's role), and session termination.
- */
 class AuthController extends Controller
 {
     /**
