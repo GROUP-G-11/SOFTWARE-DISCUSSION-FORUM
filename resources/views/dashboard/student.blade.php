@@ -504,7 +504,7 @@
             });
     };
 
-    //////////////added
+    
     document.addEventListener('DOMContentLoaded', () => {
     console.log("DOM loaded. Checking for Laravel Echo...");
     
