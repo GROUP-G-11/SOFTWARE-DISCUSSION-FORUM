@@ -7,9 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Observers\PostObserver;
 
-/**
- * Post - one message written by a member inside a topic. See SDD 4.2 "Posts" table.
- */
+
 class Post extends Model
 {
     protected $table = 'posts';
