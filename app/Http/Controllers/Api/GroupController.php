@@ -30,8 +30,7 @@ class GroupController extends Controller
             ->pluck('group_id')
             ->flip();
  
-        // A pending join request means "Join" should show "Request pending"
-        // instead of letting the user send a second request.
+    
         $myPendingRequestGroupIds = GroupJoinRequest::where('user_id', $userId)
             ->where('status', 'pending')
             ->pluck('group_id')
