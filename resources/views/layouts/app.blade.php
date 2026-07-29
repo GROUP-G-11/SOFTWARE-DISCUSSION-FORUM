@@ -227,10 +227,7 @@
             border-left: 1px solid var(--line);
             padding: 32px 28px 60px;
         }
-        /* Dashboard/chat pages already build their own flush white box
-           (.dash-shell / .chat-thread) for the panel-switching UI, so let
-           content-col pass through untouched there to avoid a white-on-white
-           double border. */
+       
         .app-main:has(.dash-shell) > .content-col,
         .app-main:has(.chat-thread) > .content-col {
             background: transparent;
