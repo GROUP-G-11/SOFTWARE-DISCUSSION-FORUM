@@ -669,10 +669,7 @@ function initNotificationChannel() {
             console.error('Notification channel subscription error:', error);
         });
 }
-        // Mobile hamburger menu: the sidebar itself becomes a fixed drawer
-        // (see the 760px query) that slides in over the content, with a
-        // dimmed overlay behind it. No-op on desktop since the toggle
-        // button is display:none there.
+       
         (function () {
             const toggleBtn = document.getElementById('mobileMenuToggle');
             const closeBtn = document.getElementById('sidebarCloseBtn');
