@@ -330,8 +330,7 @@
             transform: none;
             box-shadow: 0 2px 6px rgba(99,102,241,.08);
         }
-        /* A couple of alternating tints so a list of these doesn't look
-           monotonous — cycle by nth-child within any list container. */
+       
         .card.card-item:nth-child(3n+2) { border-left-color: var(--accent); background: #eafaf7; }
         .card.card-item:nth-child(3n+3) { border-left-color: var(--accent-2); background: #f9fdf0; }
         
