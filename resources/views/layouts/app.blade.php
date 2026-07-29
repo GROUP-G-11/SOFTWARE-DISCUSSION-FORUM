@@ -220,12 +220,7 @@
         .app-sidebar-footer a { color: var(--paper); opacity: .6; text-decoration: none; font-size: 12px; transition: opacity .12s ease; }
         .app-sidebar-footer a:hover { opacity: 1; text-decoration: underline; }
         .app-main { flex: 1; min-width: 0; padding: 0; }
-        /* content-col is the one wrapper every page's @@yield('content') sits
-           in (see the <main> markup below). Making IT the flush white panel
-           - instead of the old padded, narrower, centered column - means
-           every page gets a full-bleed white area that starts exactly where
-           the top bar ends and touches the sidebar, the right edge, and the
-           bottom of the screen; only the top bar stays cream. */
+        
         .app-main > .content-col {
             background: #fff;
             min-height: calc(100vh - 65px);
